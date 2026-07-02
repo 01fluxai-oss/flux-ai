@@ -27,10 +27,16 @@ def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    application = ApplicationBuilder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
+    async def main():
+        application = ApplicationBuilder().token(TOKEN).build()
+        application.add_handler(CommandHandler("start", start))
 
-    application.run_polling(close_loop=False)
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+
+    loop.run_until_complete(main())
+    loop.run_forever()
 
 if __name__ == "__main__":
     Thread(target=run_bot, daemon=True).start()
