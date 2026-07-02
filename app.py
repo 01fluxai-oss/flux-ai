@@ -3,9 +3,13 @@ import asyncio
 from flask import Flask
 from threading import Thread
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from openai import OpenAI
 
-TOKEN = os.environ["BOT_TOKEN"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = Flask(__name__)
 
@@ -19,17 +23,61 @@ def health():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Привет! FLUX AI успешно запущен.\n\n"
-        "Я готов стать вашим AI-ассистентом."
+        "👋 Привет! Я FLUX AI.\n\n"
+        "Напишите мне любой вопрос, и я отвечу как AI-ассистент."
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Команды FLUX AI:\n"
+        "/start — запустить бота\n"
+        "/help — помощь\n\n"
+        "Также вы можете просто написать любой вопрос."
+    )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text
+
+    await update.message.reply_text("⏳ Думаю...")
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Ты FLUX AI — интеллектуальный AI-ассистент нового поколения. "
+                        "Отвечай понятно, профессионально и полезно. "
+                        "Если вопрос связан со спортивной аналитикой, объясняй осторожно и не обещай гарантированный выигрыш."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": user_text
+                }
+            ],
+            temperature=0.7
+        )
+
+        answer = response.choices[0].message.content
+        await update.message.reply_text(answer)
+
+    except Exception as e:
+        await update.message.reply_text(
+            "⚠️ Сейчас не получилось получить ответ от AI. Попробуйте ещё раз позже."
+        )
+        print("OpenAI error:", e)
 
 def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     async def main():
-        application = ApplicationBuilder().token(TOKEN).build()
+        application = ApplicationBuilder().token(BOT_TOKEN).build()
         application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
         await application.initialize()
         await application.start()
