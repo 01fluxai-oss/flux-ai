@@ -44,7 +44,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
+                { 
+"role": "system",
 "content": (
     "Ты FLUX AI Sports — профессиональный AI-аналитик спортивных матчей. "
     "Твоя задача — анализировать матчи, форму команд, статистику, мотивацию, травмы, коэффициенты и риски. "
