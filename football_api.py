@@ -8,7 +8,6 @@ HEADERS = {
     "x-apisports-key": API_KEY
 }
 
-
 ALIASES = {
     "псж": "Paris Saint Germain",
     "psg": "Paris Saint Germain",
@@ -30,14 +29,20 @@ def normalize_team_name(name):
 
 def api_get(endpoint, params=None):
     url = f"{BASE_URL}/{endpoint}"
+
     response = requests.get(
         url,
         headers=HEADERS,
         params=params or {},
         timeout=20,
     )
-    data = response.json()
-    print("API:", endpoint, params, data)
+
+    try:
+        data = response.json()
+    except Exception:
+        data = {"error": "Invalid JSON", "text": response.text}
+
+    print("API_DEBUG:", endpoint, params, data, flush=True)
     return data
 
 
