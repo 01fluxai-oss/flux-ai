@@ -1,7 +1,7 @@
 import os
 import asyncio
-from flask import Flask
 from threading import Thread
+from flask import Flask
 
 from telegram import Update
 from telegram.ext import (
@@ -20,123 +20,90 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-app = Flask(__name__)
+
+web_app = Flask(__name__)
 
 
-@app.route("/")
+@web_app.route("/")
 def home():
     return "FLUX AI Sports Bot is running!"
 
 
-@app.route("/health")
+@web_app.route("/health")
 def health():
     return "OK"
 
 
-def detect_match(text: str):
+def detect_match(text):
     separators = ["—", "-", " vs ", " VS ", " v ", " V "]
-
     for sep in separators:
         if sep in text:
             parts = text.split(sep)
             if len(parts) >= 2:
-                team1 = parts[0].strip()
-                team2 = parts[1].strip()
-                if team1 and team2:
-                    return team1, team2
-
+                return parts[0].strip(), parts[1].strip()
     return None, None
 
 
-def fixture_summary(match):
-    fixture = match.get("fixture", {})
-    league = match.get("league", {})
-    teams = match.get("teams", {})
-    goals = match.get("goals", {})
+def fmt_matches(matches):
+    if not matches:
+        return "Нет данных"
 
-    home = teams.get("home", {}).get("name")
-    away = teams.get("away", {}).get("name")
-    home_goals = goals.get("home")
-    away_goals = goals.get("away")
+    lines = []
+    for m in matches[:10]:
+        if isinstance(m, dict):
+            lines.append(
+                f"{m.get('date')} | {m.get('league')} | "
+                f"{m.get('home')} {m.get('score')} {m.get('away')}"
+            )
+        else:
+            lines.append(str(m))
+    return "\n".join(lines)
 
-    return (
-        f"{fixture.get('date')} | {league.get('name')} | "
-        f"{home} {home_goals}:{away_goals} {away}"
-    )
 
+def build_prompt(team1, team2):
+    data = build_match_context(team1, team2)
 
-def build_context_text(team1: str, team2: str):
-    context = build_match_context(team1, team2)
+    if not data:
+        return f"""
+Матч: {team1} — {team2}
 
-    if not context:
-        return None
-
-    team1_info = context["team1"]
-    team2_info = context["team2"]
-
-    team1_form = context["team1_form"]
-    team2_form = context["team2_form"]
-    h2h_analysis = context["h2h_analysis"]
-    probabilities = context["probabilities"]
-
-    team1_last = [fixture_summary(m) for m in context["team1_last_matches"][:10]]
-    team2_last = [fixture_summary(m) for m in context["team2_last_matches"][:10]]
-    h2h = [fixture_summary(m) for m in context["head_to_head"][:10]]
-
-    return f"""
-Матч:
-{team1_info.get("name")} — {team2_info.get("name")}
-
-Рассчитанные вероятности FLUX:
-П1 — {probabilities.get("p1")}%
-Х — {probabilities.get("draw")}%
-П2 — {probabilities.get("p2")}%
-
-Форма {team1_info.get("name")} за последние матчи:
-Матчей: {team1_form.get("played")}
-Победы: {team1_form.get("wins")}
-Ничьи: {team1_form.get("draws")}
-Поражения: {team1_form.get("losses")}
-Голы забито: {team1_form.get("goals_for")}
-Голы пропущено: {team1_form.get("goals_against")}
-Средние голы забито: {team1_form.get("avg_goals_for")}
-Средние голы пропущено: {team1_form.get("avg_goals_against")}
-
-Форма {team2_info.get("name")} за последние матчи:
-Матчей: {team2_form.get("played")}
-Победы: {team2_form.get("wins")}
-Ничьи: {team2_form.get("draws")}
-Поражения: {team2_form.get("losses")}
-Голы забито: {team2_form.get("goals_for")}
-Голы пропущено: {team2_form.get("goals_against")}
-Средние голы забито: {team2_form.get("avg_goals_for")}
-Средние голы пропущено: {team2_form.get("avg_goals_against")}
-
-Очные встречи:
-Матчей: {h2h_analysis.get("played")}
-Победы первой команды: {h2h_analysis.get("team1_wins")}
-Ничьи: {h2h_analysis.get("draws")}
-Победы второй команды: {h2h_analysis.get("team2_wins")}
-Средний тотал голов: {h2h_analysis.get("avg_total_goals")}
-
-Последние матчи {team1_info.get("name")}:
-{team1_last}
-
-Последние матчи {team2_info.get("name")}:
-{team2_last}
-
-Последние очные встречи:
-{h2h}
+API-Football не нашёл данные по командам.
+Сделай осторожный предварительный анализ и честно укажи, что данных недостаточно.
 """
 
+    t1 = data["team1"]["name"]
+    t2 = data["team2"]["name"]
 
-SYSTEM_PROMPT = """
-Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
+    return f"""
+Сделай профессиональный футбольный прогноз.
 
-Используй данные API-Football и рассчитанные вероятности FLUX.
-Не игнорируй статистику. Не придумывай данные, которых нет.
+Матч:
+{t1} — {t2}
 
-Формат ответа:
+Рассчитанные вероятности FLUX:
+П1 — {data["probabilities"]["p1"]}%
+Х — {data["probabilities"]["draw"]}%
+П2 — {data["probabilities"]["p2"]}%
+
+Форма {t1}:
+{data["team1_form"]}
+
+Форма {t2}:
+{data["team2_form"]}
+
+Очные встречи:
+{data["h2h_analysis"]}
+
+Последние матчи {t1}:
+{fmt_matches(data["team1_last_matches"])}
+
+Последние матчи {t2}:
+{fmt_matches(data["team2_last_matches"])}
+
+Последние очные встречи:
+{fmt_matches(data["head_to_head"])}
+
+Ответь строго в формате:
 
 ⚽ FLUX AI Sports Analysis
 
@@ -171,73 +138,58 @@ SYSTEM_PROMPT = """
 Низкий / Средний / Высокий
 
 Уверенность:
-от 1 до 10
+1–10
 
 Вывод:
 ...
+"""
 
-Важно:
-- Никогда не обещай гарантированный выигрыш.
-- Если данных мало, честно скажи это.
-- Не давай совет как финансовую гарантию.
+
+SYSTEM_PROMPT = """
+Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
+Используй данные API-Football и расчёты FLUX.
+Не обещай гарантированный выигрыш.
+Если данных мало, честно скажи об этом.
 """
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Я FLUX AI Sports.\n\n"
-        "Напиши матч в формате:\n"
-        "Real Madrid — PSG\n"
+        "Напиши матч, например:\n"
+        "Реал Мадрид — ПСЖ\n"
         "или\n"
-        "Реал Мадрид — ПСЖ"
+        "Real Madrid — PSG"
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "/start — запустить бота\n"
-        "/help — помощь\n\n"
-        "Для прогноза напиши матч:\n"
-        "Real Madrid — PSG"
+        "Напиши матч в формате:\n"
+        "Команда 1 — Команда 2\n\n"
+        "Пример:\n"
+        "Реал Мадрид — ПСЖ"
     )
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_text = update.message.text
+    text = update.message.text
     await update.message.reply_text("⌛ Анализирую матч...")
 
-    team1, team2 = detect_match(user_text)
+    team1, team2 = detect_match(text)
 
     if team1 and team2:
         try:
-            match_context = build_context_text(team1, team2)
-
-            if not match_context:
-                user_prompt = (
-                    f"Пользователь запросил матч: {team1} — {team2}. "
-                    "API-Football не смог найти команды. "
-                    "Сделай предварительный анализ и честно скажи, что данных мало."
-                )
-            else:
-                user_prompt = f"""
-Пользователь запросил прогноз.
-
-Вот реальные данные API-Football и расчеты FLUX:
-
-{match_context}
-
-Сделай анализ строго по структуре.
-Используй рассчитанные вероятности FLUX.
-"""
+            user_prompt = build_prompt(team1, team2)
         except Exception as e:
             print("Football API error:", e)
-            user_prompt = (
-                f"Матч: {team1} — {team2}. "
-                f"Ошибка API-Football: {e}. "
-                "Сделай предварительный анализ и честно укажи, что актуальные данные не получены."
-            )
+            user_prompt = f"""
+Матч: {team1} — {team2}
+Ошибка API-Football: {e}
+Сделай осторожный предварительный анализ и честно укажи, что актуальные данные не получены.
+"""
     else:
-        user_prompt = user_text
+        user_prompt = text
 
     try:
         response = client.chat.completions.create(
@@ -263,22 +215,28 @@ def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    async def main():
+        application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    )
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+        )
 
-    loop.run_until_complete(application.initialize())
-    loop.run_until_complete(application.start())
-    loop.run_until_complete(application.updater.start_polling(drop_pending_updates=True))
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
 
-    print("FLUX AI bot started")
+        print("FLUX AI bot started")
 
+    loop.run_until_complete(main())
     loop.run_forever()
 
 
 if __name__ == "__main__":
-    run_bot()
+    Thread(target=run_bot, daemon=True).start()
+    web_app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000))
+    )
