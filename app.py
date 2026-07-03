@@ -61,7 +61,7 @@ def fmt_matches(matches):
 
 
 def build_prompt(team1, team2):
-    data = build_match_context(team1, team2)
+    data = analyze_match(team1, team2)
 
     if not data:
         return f"""
