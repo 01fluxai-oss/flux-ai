@@ -1,30 +1,25 @@
 import os
 import requests
 
-API_KEY = os.getenv("FOOTBALL_API_KEY")
-BASE_URL = "https://v3.football.api-sports.io"
+API_KEY = os.getenv("FOOTBALL_DATA_API_KEY")
+BASE_URL = "https://api.football-data.org/v4"
 
 HEADERS = {
-    "x-apisports-key": API_KEY
+    "X-Auth-Token": API_KEY
 }
 
-ALIASES = {
-    "псж": "Paris Saint Germain",
-    "psg": "Paris Saint Germain",
-    "реал мадрид": "Real Madrid",
-    "real madrid": "Real Madrid",
-    "барселона": "Barcelona",
-    "barcelona": "Barcelona",
-    "ман сити": "Manchester City",
-    "man city": "Manchester City",
-    "бавария": "Bayern Munich",
-    "bayern": "Bayern Munich",
+TEAMS = {
+    "реал мадрид": {"id": 86, "name": "Real Madrid"},
+    "real madrid": {"id": 86, "name": "Real Madrid"},
+    "псж": {"id": 524, "name": "Paris Saint-Germain"},
+    "psg": {"id": 524, "name": "Paris Saint-Germain"},
+    "барселона": {"id": 81, "name": "FC Barcelona"},
+    "barcelona": {"id": 81, "name": "FC Barcelona"},
+    "ман сити": {"id": 65, "name": "Manchester City FC"},
+    "man city": {"id": 65, "name": "Manchester City FC"},
+    "бавария": {"id": 5, "name": "FC Bayern München"},
+    "bayern": {"id": 5, "name": "FC Bayern München"},
 }
-
-
-def normalize_team_name(name):
-    key = name.lower().strip()
-    return ALIASES.get(key, name.strip())
 
 
 def api_get(endpoint, params=None):
@@ -42,38 +37,61 @@ def api_get(endpoint, params=None):
     except Exception:
         data = {"error": "Invalid JSON", "text": response.text}
 
-    print("API_DEBUG:", endpoint, params, data, flush=True)
+    print("FOOTBALL_DATA_DEBUG:", endpoint, params, data, flush=True)
     return data
 
 
 def search_team(team_name):
-    team_name = normalize_team_name(team_name)
-    data = api_get("teams", {"search": team_name})
+    key = team_name.lower().strip()
+    team = TEAMS.get(key)
 
-    response = data.get("response", [])
-    if not response:
+    if not team:
         return None
-
-    team = response[0]["team"]
 
     return {
         "id": team["id"],
         "name": team["name"],
-        "country": team.get("country"),
+        "country": None,
+    }
+
+
+def convert_match(match):
+    home = match.get("homeTeam", {})
+    away = match.get("awayTeam", {})
+    score = match.get("score", {}).get("fullTime", {})
+
+    return {
+        "fixture": {
+            "date": match.get("utcDate"),
+        },
+        "league": {
+            "name": match.get("competition", {}).get("name"),
+        },
+        "teams": {
+            "home": {"name": home.get("name")},
+            "away": {"name": away.get("name")},
+        },
+        "goals": {
+            "home": score.get("home"),
+            "away": score.get("away"),
+        },
     }
 
 
 def get_last_matches(team_id, count=10):
-    data = api_get("fixtures", {"team": team_id, "last": count})
-    return data.get("response", [])
+    data = api_get(
+        f"teams/{team_id}/matches",
+        {
+            "status": "FINISHED",
+            "limit": count,
+        },
+    )
+
+    matches = data.get("matches", [])
+    return [convert_match(m) for m in matches[:count]]
 
 
 def get_h2h(team1_id, team2_id, count=5):
-    data = api_get(
-        "fixtures/headtohead",
-        {
-            "h2h": f"{team1_id}-{team2_id}",
-            "last": count,
-        },
-    )
-    return data.get("response", [])
+    # Football-Data free tier не всегда дает прямой H2H.
+    # Пока возвращаем пустой список, чтобы бот работал стабильно.
+    return []
