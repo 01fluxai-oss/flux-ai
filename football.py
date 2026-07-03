@@ -59,6 +59,9 @@ def get_last_matches(team_id, last=10):
         "last": last,
         "status": "FT"
     })
+
+    print("LAST MATCHES:", data)
+
     return data.get("response", [])
 
 def get_h2h(team1_id, team2_id):
@@ -66,6 +69,9 @@ def get_h2h(team1_id, team2_id):
         "h2h": f"{team1_id}-{team2_id}",
         "last": 10
     })
+
+    print("H2H:", data)
+
     return data.get("response", [])
 
 def analyze_form(matches, team_id):
