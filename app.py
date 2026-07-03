@@ -33,13 +33,40 @@ def detect_match(text):
 def build_prompt(team1, team2):
     data = analyze_match(team1, team2)
 
+if not data.get("success"):
+    return f"""
+Матч: {team1} — {team2}
+
+Ошибка:
+{data.get("error")}
+
+Сделай осторожный анализ и объясни, что статистика недоступна.
+"""
+    
+
     return f"""
 Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
 
 Матч: {team1} — {team2}
 
-Данные API-Football:
-{data}
+FLUX Index:
+{data["flux_index"]}
+
+Вероятности:
+{data["probabilities"]}
+
+Форма:
+{data["team1_form"]}
+
+{data["team2_form"]}
+
+Последние матчи:
+{data["team1_last_matches"]}
+
+{data["team2_last_matches"]}
+
+Очные встречи:
+{data["head_to_head"]}
 
 Сделай анализ строго в формате:
 
