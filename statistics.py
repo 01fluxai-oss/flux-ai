@@ -1,3 +1,22 @@
+def clean_name(name):
+    if not name:
+        return ""
+    return (
+        name.lower()
+        .replace("fc", "")
+        .replace("cf", "")
+        .replace("club", "")
+        .replace("-", " ")
+        .strip()
+    )
+
+
+def same_team(a, b):
+    a = clean_name(a)
+    b = clean_name(b)
+    return a in b or b in a
+
+
 def simplify_match(match):
     fixture = match.get("fixture", {})
     league = match.get("league", {})
@@ -18,6 +37,7 @@ def team_form_score(matches, team_name):
     wins = draws = losses = 0
     goals_for = 0
     goals_against = 0
+    counted = 0
 
     for match in matches:
         teams = match.get("teams", {})
@@ -26,16 +46,20 @@ def team_form_score(matches, team_name):
         home = teams.get("home", {}).get("name")
         away = teams.get("away", {}).get("name")
 
-        home_goals = goals.get("home") or 0
-        away_goals = goals.get("away") or 0
+        home_goals = goals.get("home")
+        away_goals = goals.get("away")
 
-        if team_name == home:
+        if home_goals is None or away_goals is None:
+            continue
+
+        if same_team(team_name, home):
             gf, ga = home_goals, away_goals
-        elif team_name == away:
+        elif same_team(team_name, away):
             gf, ga = away_goals, home_goals
         else:
             continue
 
+        counted += 1
         goals_for += gf
         goals_against += ga
 
@@ -48,10 +72,10 @@ def team_form_score(matches, team_name):
         else:
             losses += 1
 
-    matches_count = max(len(matches), 1)
+    matches_count = max(counted, 1)
 
     return {
-        "matches": len(matches),
+        "matches": counted,
         "points": points,
         "wins": wins,
         "draws": draws,
@@ -66,6 +90,7 @@ def team_form_score(matches, team_name):
 def h2h_summary(matches, team1_name, team2_name):
     team1_wins = team2_wins = draws = 0
     total_goals = 0
+    counted = 0
 
     for match in matches:
         teams = match.get("teams", {})
@@ -74,27 +99,32 @@ def h2h_summary(matches, team1_name, team2_name):
         home = teams.get("home", {}).get("name")
         away = teams.get("away", {}).get("name")
 
-        home_goals = goals.get("home") or 0
-        away_goals = goals.get("away") or 0
+        home_goals = goals.get("home")
+        away_goals = goals.get("away")
+
+        if home_goals is None or away_goals is None:
+            continue
+
+        counted += 1
         total_goals += home_goals + away_goals
 
         if home_goals == away_goals:
             draws += 1
         elif home_goals > away_goals:
-            if home == team1_name:
+            if same_team(home, team1_name):
                 team1_wins += 1
-            elif home == team2_name:
+            elif same_team(home, team2_name):
                 team2_wins += 1
         else:
-            if away == team1_name:
+            if same_team(away, team1_name):
                 team1_wins += 1
-            elif away == team2_name:
+            elif same_team(away, team2_name):
                 team2_wins += 1
 
-    count = max(len(matches), 1)
+    count = max(counted, 1)
 
     return {
-        "matches": len(matches),
+        "matches": counted,
         "team1_wins": team1_wins,
         "draws": draws,
         "team2_wins": team2_wins,
