@@ -19,7 +19,8 @@ def search_team(team_name):
     )
 
     data = r.json()
-
+print("TEAM SEARCH:", team_name)
+print(data)
     if not data.get("response"):
         return None
 
