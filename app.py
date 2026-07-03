@@ -8,7 +8,7 @@ from openai import OpenAI
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-
+from football import build_match_context
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = Flask(__name__)
