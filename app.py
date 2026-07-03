@@ -260,21 +260,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def run_bot():
-    async def main():
-        application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("help", help_command))
-        application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-        )
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    )
 
-        await application.run_polling(
-            drop_pending_updates=True,
-            close_loop=False
-        )
-
-    asyncio.run(main())
+    application.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
