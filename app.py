@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 from openai import OpenAI
-from football import build_match_context
+from football import analyze_match
 
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
