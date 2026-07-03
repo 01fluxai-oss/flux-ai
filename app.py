@@ -22,10 +22,11 @@ def send_message(chat_id, text):
 
 
 def detect_match(text):
-    for sep in ["—", "-", " vs ", " VS ", " v ", " V "]:
+    separators = ["—", "-", " vs ", " VS ", " v ", " V "]
+    for sep in separators:
         if sep in text:
-            parts = text.split(sep)
-            if len(parts) >= 2:
+            parts = text.split(sep, 1)
+            if len(parts) == 2:
                 return parts[0].strip(), parts[1].strip()
     return None, None
 
@@ -33,46 +34,69 @@ def detect_match(text):
 def build_prompt(team1, team2):
     data = analyze_match(team1, team2)
 
-if not data.get("success"):
-    return f"""
+    if not data.get("success"):
+        return f"""
 Матч: {team1} — {team2}
 
-Ошибка:
-{data.get("error")}
+Ошибка API-Football:
+{data.get("error", "Данные не получены")}
 
-Сделай осторожный анализ и объясни, что статистика недоступна.
+Сделай осторожный предварительный анализ. Честно укажи, что актуальных статистических данных недостаточно.
 """
-    
+
+    t1 = data["team1"]["name"]
+    t2 = data["team2"]["name"]
 
     return f"""
 Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
 
-Матч: {team1} — {team2}
+Матч:
+{t1} — {t2}
 
-FLUX Index:
-{data["flux_index"]}
+ВАЖНО:
+Не изменяй рассчитанные проценты FLUX. Используй их как основу анализа.
 
-Вероятности:
-{data["probabilities"]}
+📊 FLUX INDEX:
+{t1}: {data["flux_index"][t1]}/100
+{t2}: {data["flux_index"][t2]}/100
 
-Форма:
-{data["team1_form"]}
+🎯 Вероятности FLUX:
+П1 — {data["probabilities"]["p1"]}%
+Х — {data["probabilities"]["draw"]}%
+П2 — {data["probabilities"]["p2"]}%
 
-{data["team2_form"]}
+⚽ Тотал 2.5:
+Больше — {data["totals"]["over_2_5"]}%
+Меньше — {data["totals"]["under_2_5"]}%
 
-Последние матчи:
+🥅 Обе забьют:
+Да — {data["totals"]["btts_yes"]}%
+Нет — {data["totals"]["btts_no"]}%
+
+📈 Форма команд:
+{t1}: {data["team1_form"]}
+{t2}: {data["team2_form"]}
+
+🤝 Очные встречи:
+{data["h2h"]}
+
+Последние матчи {t1}:
 {data["team1_last_matches"]}
 
+Последние матчи {t2}:
 {data["team2_last_matches"]}
 
-Очные встречи:
+Последние очные встречи:
 {data["head_to_head"]}
 
-Сделай анализ строго в формате:
+Ответь строго в формате:
 
 ⚽ FLUX AI Sports Analysis
 
 Матч:
+...
+
+FLUX Index:
 ...
 
 Вероятности FLUX:
@@ -91,10 +115,16 @@ FLUX Index:
 Форма команд:
 ...
 
+Очные встречи:
+...
+
 Ключевые факторы:
 1.
 2.
 3.
+
+Лучший вариант:
+...
 
 Риск:
 Низкий / Средний / Высокий
@@ -118,7 +148,10 @@ def analyze_with_ai(text):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "Ты FLUX AI Sports. Не обещай гарантированный выигрыш."},
+            {
+                "role": "system",
+                "content": "Ты FLUX AI Sports. Не обещай гарантированный выигрыш. Анализируй как профессиональный спортивный аналитик.",
+            },
             {"role": "user", "content": prompt},
         ],
         temperature=0.3,
@@ -150,7 +183,17 @@ def telegram_webhook():
         return "OK"
 
     if text == "/start":
-        send_message(chat_id, "👋 Привет! Я FLUX AI Sports.\n\nНапиши матч, например:\nРеал Мадрид — ПСЖ")
+        send_message(
+            chat_id,
+            "👋 Привет! Я FLUX AI Sports.\n\nНапиши матч, например:\nРеал Мадрид — ПСЖ\nили\nReal Madrid — PSG",
+        )
+        return "OK"
+
+    if text == "/help":
+        send_message(
+            chat_id,
+            "Напиши матч в формате:\nКоманда 1 — Команда 2\n\nПример:\nРеал Мадрид — ПСЖ",
+        )
         return "OK"
 
     send_message(chat_id, "⌛ Анализирую матч...")
@@ -167,14 +210,23 @@ def telegram_webhook():
 
 def set_webhook():
     webhook_url = f"{PUBLIC_URL}/telegram/{BOT_TOKEN}"
+
     r = requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
-        json={"url": webhook_url, "drop_pending_updates": True},
+        json={
+            "url": webhook_url,
+            "drop_pending_updates": True,
+        },
         timeout=20,
     )
+
     print("Webhook set:", r.text)
 
 
 if __name__ == "__main__":
     Thread(target=set_webhook, daemon=True).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+    )
