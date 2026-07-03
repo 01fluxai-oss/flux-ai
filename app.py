@@ -1,7 +1,7 @@
 import os
 import asyncio
 from threading import Thread
-from flask import Flask
+from flask import Flask, request
 
 from telegram import Update
 from telegram.ext import (
@@ -19,19 +19,14 @@ from football import analyze_match
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
+PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 web_app = Flask(__name__)
 
-
-@web_app.route("/")
-def home():
-    return "FLUX AI Sports Bot is running!"
-
-
-@web_app.route("/health")
-def health():
-    return "OK"
+bot_loop = asyncio.new_event_loop()
+telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
 
 
 def detect_match(text):
@@ -44,64 +39,30 @@ def detect_match(text):
     return None, None
 
 
-def fmt_matches(matches):
-    if not matches:
-        return "Нет данных"
-
-    lines = []
-    for m in matches[:10]:
-        if isinstance(m, dict):
-            lines.append(
-                f"{m.get('date')} | {m.get('league')} | "
-                f"{m.get('home')} {m.get('score')} {m.get('away')}"
-            )
-        else:
-            lines.append(str(m))
-    return "\n".join(lines)
-
-
 def build_prompt(team1, team2):
     data = analyze_match(team1, team2)
 
-    if not data:
+    if not data.get("success"):
         return f"""
 Матч: {team1} — {team2}
 
-API-Football не нашёл данные по командам.
-Сделай осторожный предварительный анализ и честно укажи, что данных недостаточно.
-"""
+API-Football ошибка:
+{data.get("error", "Данные не получены")}
 
-    t1 = data["team1"]["name"]
-    t2 = data["team2"]["name"]
+Сделай осторожный предварительный анализ. Честно укажи, что актуальные данные ограничены.
+"""
 
     return f"""
 Сделай профессиональный футбольный прогноз.
 
 Матч:
-{t1} — {t2}
+{data["team1"]} — {data["team2"]}
 
-Рассчитанные вероятности FLUX:
-П1 — {data["probabilities"]["p1"]}%
-Х — {data["probabilities"]["draw"]}%
-П2 — {data["probabilities"]["p2"]}%
+Данные команды 1:
+{data["team1_data"]}
 
-Форма {t1}:
-{data["team1_form"]}
-
-Форма {t2}:
-{data["team2_form"]}
-
-Очные встречи:
-{data["h2h_analysis"]}
-
-Последние матчи {t1}:
-{fmt_matches(data["team1_last_matches"])}
-
-Последние матчи {t2}:
-{fmt_matches(data["team2_last_matches"])}
-
-Последние очные встречи:
-{fmt_matches(data["head_to_head"])}
+Данные команды 2:
+{data["team2_data"]}
 
 Ответь строго в формате:
 
@@ -126,9 +87,6 @@ API-Football не нашёл данные по командам.
 Форма команд:
 ...
 
-Очные встречи:
-...
-
 Ключевые факторы:
 1.
 2.
@@ -147,7 +105,7 @@ API-Football не нашёл данные по командам.
 
 SYSTEM_PROMPT = """
 Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
-Используй данные API-Football и расчёты FLUX.
+Используй данные API-Football.
 Не обещай гарантированный выигрыш.
 Если данных мало, честно скажи об этом.
 """
@@ -179,15 +137,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     team1, team2 = detect_match(text)
 
     if team1 and team2:
-        try:
-            user_prompt = build_prompt(team1, team2)
-        except Exception as e:
-            print("Football API error:", e)
-            user_prompt = f"""
-Матч: {team1} — {team2}
-Ошибка API-Football: {e}
-Сделай осторожный предварительный анализ и честно укажи, что актуальные данные не получены.
-"""
+        user_prompt = build_prompt(team1, team2)
     else:
         user_prompt = text
 
@@ -211,31 +161,62 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CommandHandler("help", help_command))
+telegram_app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+)
 
-    async def main():
-        application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("help", help_command))
-        application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-        )
+def run_bot_loop():
+    asyncio.set_event_loop(bot_loop)
+    bot_loop.run_until_complete(telegram_app.initialize())
+    bot_loop.run_until_complete(telegram_app.start())
+    print("FLUX AI webhook bot started")
+    bot_loop.run_forever()
 
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling(drop_pending_updates=True)
 
-        print("FLUX AI bot started")
+@web_app.route("/")
+def home():
+    return "FLUX AI Sports Bot is running!"
 
-    loop.run_until_complete(main())
-    loop.run_forever()
+
+@web_app.route("/health")
+def health():
+    return "OK"
+
+
+@web_app.route(f"/telegram/{BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    asyncio.run_coroutine_threadsafe(
+        telegram_app.process_update(update),
+        bot_loop
+    )
+    return "OK"
+
+
+def set_webhook():
+    import requests
+
+    webhook_url = f"{PUBLIC_URL}/telegram/{BOT_TOKEN}"
+
+    response = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
+        data={
+            "url": webhook_url,
+            "drop_pending_updates": True,
+        },
+        timeout=20,
+    )
+
+    print("Webhook set:", response.text)
 
 
 if __name__ == "__main__":
-    Thread(target=run_bot, daemon=True).start()
+    Thread(target=run_bot_loop, daemon=True).start()
+    set_webhook()
+
     web_app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
