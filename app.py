@@ -20,13 +20,12 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-
 app = Flask(__name__)
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Bot is running!"
+    return "FLUX AI Sports Bot is running!"
 
 
 @app.route("/health")
@@ -49,89 +48,102 @@ def detect_match(text: str):
     return None, None
 
 
-def simplify_fixture(match):
+def fixture_summary(match):
     fixture = match.get("fixture", {})
+    league = match.get("league", {})
     teams = match.get("teams", {})
     goals = match.get("goals", {})
-    league = match.get("league", {})
 
-    return {
-        "date": fixture.get("date"),
-        "league": league.get("name"),
-        "country": league.get("country"),
-        "home": teams.get("home", {}).get("name"),
-        "away": teams.get("away", {}).get("name"),
-        "home_goals": goals.get("home"),
-        "away_goals": goals.get("away"),
-        "status": fixture.get("status", {}).get("short"),
-    }
+    home = teams.get("home", {}).get("name")
+    away = teams.get("away", {}).get("name")
+    home_goals = goals.get("home")
+    away_goals = goals.get("away")
+
+    return (
+        f"{fixture.get('date')} | {league.get('name')} | "
+        f"{home} {home_goals}:{away_goals} {away}"
+    )
 
 
 def build_context_text(team1: str, team2: str):
-    try:
-        context = build_match_context(team1, team2)
+    context = build_match_context(team1, team2)
 
-        if not context:
-            return (
-                f"Матч: {team1} — {team2}\n"
-                "API-Football не смог найти одну из команд. "
-                "Сделай предварительный анализ и честно укажи, что данных API недостаточно."
-            )
+    if not context:
+        return None
 
-        team1_info = context["team1"]
-        team2_info = context["team2"]
+    team1_info = context["team1"]
+    team2_info = context["team2"]
 
-        team1_last = [simplify_fixture(m) for m in context["team1_last_matches"]]
-        team2_last = [simplify_fixture(m) for m in context["team2_last_matches"]]
-        h2h = [simplify_fixture(m) for m in context["head_to_head"]]
+    team1_form = context["team1_form"]
+    team2_form = context["team2_form"]
+    h2h_analysis = context["h2h_analysis"]
+    probabilities = context["probabilities"]
 
-        return f"""
-Матч: {team1_info.get("name")} — {team2_info.get("name")}
+    team1_last = [fixture_summary(m) for m in context["team1_last_matches"][:10]]
+    team2_last = [fixture_summary(m) for m in context["team2_last_matches"][:10]]
+    h2h = [fixture_summary(m) for m in context["head_to_head"][:10]]
 
-Данные API-Football:
+    return f"""
+Матч:
+{team1_info.get("name")} — {team2_info.get("name")}
 
-Команда 1:
-ID: {team1_info.get("id")}
-Название: {team1_info.get("name")}
-Страна: {team1_info.get("country")}
+Рассчитанные вероятности FLUX:
+П1 — {probabilities.get("p1")}%
+Х — {probabilities.get("draw")}%
+П2 — {probabilities.get("p2")}%
 
-Команда 2:
-ID: {team2_info.get("id")}
-Название: {team2_info.get("name")}
-Страна: {team2_info.get("country")}
+Форма {team1_info.get("name")} за последние матчи:
+Матчей: {team1_form.get("played")}
+Победы: {team1_form.get("wins")}
+Ничьи: {team1_form.get("draws")}
+Поражения: {team1_form.get("losses")}
+Голы забито: {team1_form.get("goals_for")}
+Голы пропущено: {team1_form.get("goals_against")}
+Средние голы забито: {team1_form.get("avg_goals_for")}
+Средние голы пропущено: {team1_form.get("avg_goals_against")}
 
-Последние матчи команды 1:
-{team1_last}
-
-Последние матчи команды 2:
-{team2_last}
+Форма {team2_info.get("name")} за последние матчи:
+Матчей: {team2_form.get("played")}
+Победы: {team2_form.get("wins")}
+Ничьи: {team2_form.get("draws")}
+Поражения: {team2_form.get("losses")}
+Голы забито: {team2_form.get("goals_for")}
+Голы пропущено: {team2_form.get("goals_against")}
+Средние голы забито: {team2_form.get("avg_goals_for")}
+Средние голы пропущено: {team2_form.get("avg_goals_against")}
 
 Очные встречи:
-{h2h}
+Матчей: {h2h_analysis.get("played")}
+Победы первой команды: {h2h_analysis.get("team1_wins")}
+Ничьи: {h2h_analysis.get("draws")}
+Победы второй команды: {h2h_analysis.get("team2_wins")}
+Средний тотал голов: {h2h_analysis.get("avg_total_goals")}
 
-На основе этих данных сделай профессиональный прогноз.
+Последние матчи {team1_info.get("name")}:
+{team1_last}
+
+Последние матчи {team2_info.get("name")}:
+{team2_last}
+
+Последние очные встречи:
+{h2h}
 """
-    except Exception as e:
-        return (
-            f"Матч: {team1} — {team2}\n"
-            f"Ошибка получения данных API-Football: {e}\n"
-            "Сделай предварительный анализ и честно укажи, что актуальные данные получить не удалось."
-        )
 
 
 SYSTEM_PROMPT = """
 Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
 
-Твоя задача — анализировать матчи на основе данных API-Football и спортивной логики.
+Используй данные API-Football и рассчитанные вероятности FLUX.
+Не игнорируй статистику. Не придумывай данные, которых нет.
 
-Всегда отвечай структурировано:
+Формат ответа:
 
 ⚽ FLUX AI Sports Analysis
 
 Матч:
 ...
 
-Вероятности:
+Вероятности FLUX:
 П1 — %
 Х — %
 П2 — %
@@ -143,6 +155,12 @@ SYSTEM_PROMPT = """
 Обе забьют:
 Да — %
 Нет — %
+
+Форма команд:
+...
+
+Очные встречи:
+...
 
 Ключевые факторы:
 1.
@@ -160,9 +178,8 @@ SYSTEM_PROMPT = """
 
 Важно:
 - Никогда не обещай гарантированный выигрыш.
-- Не пиши, что ставка точно зайдет.
-- Если данных мало, честно скажи, что анализ предварительный.
-- Не выдумывай травмы, составы и коэффициенты, если их нет в данных.
+- Если данных мало, честно скажи это.
+- Не давай совет как финансовую гарантию.
 """
 
 
@@ -170,37 +187,55 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Я FLUX AI Sports.\n\n"
         "Напиши матч в формате:\n"
-        "Реал Мадрид — ПСЖ\n\n"
-        "Я проанализирую форму команд, последние матчи и очные встречи."
+        "Real Madrid — PSG\n"
+        "или\n"
+        "Реал Мадрид — ПСЖ"
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Команды FLUX AI:\n"
         "/start — запустить бота\n"
         "/help — помощь\n\n"
-        "Для прогноза просто напиши матч:\n"
-        "Манчестер Сити — Ливерпуль"
+        "Для прогноза напиши матч:\n"
+        "Real Madrid — PSG"
     )
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
-
     await update.message.reply_text("⌛ Анализирую матч...")
 
     team1, team2 = detect_match(user_text)
 
     if team1 and team2:
-        match_context = build_context_text(team1, team2)
-        user_prompt = f"""
-Пользователь запросил прогноз на матч.
+        try:
+            match_context = build_context_text(team1, team2)
+
+            if not match_context:
+                user_prompt = (
+                    f"Пользователь запросил матч: {team1} — {team2}. "
+                    "API-Football не смог найти команды. "
+                    "Сделай предварительный анализ и честно скажи, что данных мало."
+                )
+            else:
+                user_prompt = f"""
+Пользователь запросил прогноз.
+
+Вот реальные данные API-Football и расчеты FLUX:
 
 {match_context}
 
-Сделай прогноз строго по структуре FLUX AI Sports Analysis.
+Сделай анализ строго по структуре.
+Используй рассчитанные вероятности FLUX.
 """
+        except Exception as e:
+            print("Football API error:", e)
+            user_prompt = (
+                f"Матч: {team1} — {team2}. "
+                f"Ошибка API-Football: {e}. "
+                "Сделай предварительный анализ и честно укажи, что актуальные данные не получены."
+            )
     else:
         user_prompt = user_text
 
@@ -208,16 +243,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
             ],
-            temperature=0.4,
+            temperature=0.3,
         )
 
         answer = response.choices[0].message.content
