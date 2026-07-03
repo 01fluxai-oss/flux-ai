@@ -12,6 +12,23 @@ def api_get(endpoint, params=None):
     return response.json()
 
 def search_team(team_name):
+    aliases = {
+        "psg": "Paris Saint Germain",
+        "paris": "Paris Saint Germain",
+        "real madrid": "Real Madrid",
+        "barcelona": "Barcelona",
+        "man city": "Manchester City",
+        "manchester city": "Manchester City",
+        "liverpool": "Liverpool",
+        "arsenal": "Arsenal",
+        "chelsea": "Chelsea",
+        "bayern": "Bayern Munich"
+    }
+
+    key = team_name.lower().strip()
+    if key in aliases:
+        team_name = aliases[key]
+
     data = api_get("teams", {"search": team_name})
     return data.get("response", [])[:5]
 
