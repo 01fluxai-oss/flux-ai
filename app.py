@@ -260,6 +260,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
@@ -268,7 +271,13 @@ def run_bot():
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     )
 
-    application.run_polling(drop_pending_updates=True)
+    loop.run_until_complete(application.initialize())
+    loop.run_until_complete(application.start())
+    loop.run_until_complete(application.updater.start_polling(drop_pending_updates=True))
+
+    print("FLUX AI bot started")
+
+    loop.run_forever()
 
 
 if __name__ == "__main__":
