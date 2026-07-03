@@ -19,11 +19,11 @@ def search_team(team_name):
     )
 
     data = r.json()
-print("TEAM SEARCH:", team_name)
-print(data)
+    print("TEAM SEARCH:", team_name)
+    print(data)
+
     if not data.get("response"):
         return None
-
     return data["response"][0]["team"]["id"]
 
 
