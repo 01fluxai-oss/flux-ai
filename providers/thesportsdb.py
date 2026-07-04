@@ -11,8 +11,8 @@ TEAM_MAP = {
 
     "псж": {"id": "133714", "name": "Paris Saint-Germain"},
     "psg": {"id": "133714", "name": "Paris Saint-Germain"},
-    "paris saint-germain": {"id": "133714", "name": "Paris Saint-Germain"},
     "paris sg": {"id": "133714", "name": "Paris Saint-Germain"},
+    "paris saint-germain": {"id": "133714", "name": "Paris Saint-Germain"},
 
     "барселона": {"id": "133739", "name": "Barcelona"},
     "barcelona": {"id": "133739", "name": "Barcelona"},
@@ -42,62 +42,94 @@ def search_team(team_name):
 
 def api_get(endpoint, params=None):
     url = f"{BASE_URL}/{endpoint}"
-    r = requests.get(url, params=params or {}, timeout=20)
-    r.raise_for_status()
-    return r.json()
-
-
-def get_last_matches(team_id):
-    data = api_get("eventslast.php", {"id": team_id})
-    return data.get("results", []) or []
+    response = requests.get(url, params=params or {}, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    print("THESPORTSDB_DEBUG:", endpoint, params, flush=True)
+    return data
 
 
 def same_team(a, b):
-    return a.lower().replace("-", "").replace(" ", "") == \
-           b.lower().replace("-", "").replace(" ", "")
-    def convert_event(event, team_name):
+    if not a or not b:
+        return False
+
+    def clean(x):
+        return (
+            x.lower()
+            .replace("-", "")
+            .replace(" ", "")
+            .replace(".", "")
+            .strip()
+        )
+
+    return clean(a) == clean(b)
+
+
+def get_last_matches(team_id, count=10):
+    data = api_get("eventslast.php", {"id": team_id})
+    events = data.get("results") or []
+
+    finished = []
+
+    for event in events:
+        if event.get("intHomeScore") is not None and event.get("intAwayScore") is not None:
+            finished.append(event)
+
+    return finished[:count]
+
+
+def convert_event(event, team_name):
     home = event.get("strHomeTeam", "")
     away = event.get("strAwayTeam", "")
 
+    home_score = int(event.get("intHomeScore") or 0)
+    away_score = int(event.get("intAwayScore") or 0)
+
     if same_team(home, team_name):
-        gf = int(event.get("intHomeScore") or 0)
-        ga = int(event.get("intAwayScore") or 0)
+        goals_for = home_score
+        goals_against = away_score
     elif same_team(away, team_name):
-        gf = int(event.get("intAwayScore") or 0)
-        ga = int(event.get("intHomeScore") or 0)
+        goals_for = away_score
+        goals_against = home_score
     else:
         return None
 
-    if gf > ga:
+    if goals_for > goals_against:
         result = "win"
-    elif gf == ga:
+    elif goals_for == goals_against:
         result = "draw"
     else:
         result = "loss"
 
     return {
-        "goals_for": gf,
-        "goals_against": ga,
+        "home": home,
+        "away": away,
+        "goals_for": goals_for,
+        "goals_against": goals_against,
         "result": result,
         "league": event.get("strLeague", ""),
-        "date": event.get("dateEvent", "")
+        "date": event.get("dateEvent", ""),
     }
 
 
 def build_form(matches, team_name):
-    wins = draws = losses = 0
-    gf = ga = 0
+    wins = 0
+    draws = 0
+    losses = 0
+    goals_for = 0
+    goals_against = 0
     converted = []
 
     for event in matches:
         item = convert_event(event, team_name)
+
         if not item:
             continue
 
         converted.append(item)
 
-        gf += item["goals_for"]
-        ga += item["goals_against"]
+        goals_for += item["goals_for"]
+        goals_against += item["goals_against"]
 
         if item["result"] == "win":
             wins += 1
@@ -107,30 +139,33 @@ def build_form(matches, team_name):
             losses += 1
 
     played = len(converted)
+    points = wins * 3 + draws
 
-    return {
+    form = {
         "matches": played,
-        "points": wins * 3 + draws,
+        "points": points,
         "wins": wins,
         "draws": draws,
         "losses": losses,
-        "goals_for": gf,
-        "goals_against": ga,
-        "avg_goals_for": round(gf / played, 2) if played else 0,
-        "avg_goals_against": round(ga / played, 2) if played else 0,
+        "goals_for": goals_for,
+        "goals_against": goals_against,
+        "avg_goals_for": round(goals_for / played, 2) if played else 0,
+        "avg_goals_against": round(goals_against / played, 2) if played else 0,
     }
-    def get_match_data(team1, team2):
+
+    print("FORM_DEBUG:", team_name, form, converted, flush=True)
+    return form
+
+
+def get_match_data(team1, team2):
     team1_data = search_team(team1)
     team2_data = search_team(team2)
 
-    team1_matches = get_last_matches(team1_data["id"])
-    team2_matches = get_last_matches(team2_data["id"])
+    team1_matches = get_last_matches(team1_data["id"], 10)
+    team2_matches = get_last_matches(team2_data["id"], 10)
 
     team1_form = build_form(team1_matches, team1_data["name"])
     team2_form = build_form(team2_matches, team2_data["name"])
-
-    print("FORM_DEBUG:", team1_data["name"], team1_form, flush=True)
-    print("FORM_DEBUG:", team2_data["name"], team2_form, flush=True)
 
     return {
         "source": "TheSportsDB",
