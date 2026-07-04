@@ -1,4 +1,4 @@
-from providers.mock import get_match_data
+from providers.thesportsdb import get_match_data
 from engine.flux_rating import calculate_flux_power
 from engine.probability import calculate_match_probabilities
 from engine.predictions import (
