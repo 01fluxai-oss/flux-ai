@@ -39,6 +39,19 @@ def analyze_match_text(text):
             "Real Madrid — PSG"
         )
 
+    from engine.analyzer import analyze_and_format
+
+    return analyze_and_format(team1, team2)
+    team1, team2 = detect_match(text)
+
+    if not team1 or not team2:
+        return (
+            "Напишите матч в формате:\n"
+            "Реал Мадрид — ПСЖ\n"
+            "или\n"
+            "Real Madrid — PSG"
+        )
+
     from flux_engine import calculate_match, format_analysis
 
     team1_form = {
