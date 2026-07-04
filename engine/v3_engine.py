@@ -34,6 +34,46 @@ def calculate_team_rating(form, home_advantage=False):
     home_bonus = 5 if home_advantage else 0
     data_quality = clamp(matches * 12, 0, 100)
 
+    rating = (
+        form_index * 0.40
+        + attack_index * 0.25
+        + defense_index * 0.20
+        + home_bonus
+        + data_quality * 0.10
+    )
+
+    return {
+        "rating": clamp(rating, 20, 95),
+        "form": form_index,
+        "attack": attack_index,
+        "defense": defense_index,
+        "data_quality": data_quality,
+    }
+    matches = max(form.get("matches", 0), 0)
+
+    if matches == 0:
+        return {
+            "rating": 50,
+            "form": 50,
+            "attack": 50,
+            "defense": 50,
+            "data_quality": 0,
+        }
+
+    points = form.get("points", 0)
+    goals_for = form.get("goals_for", 0)
+    goals_against = form.get("goals_against", 0)
+
+    avg_for = form.get("avg_goals_for", goals_for / max(matches, 1))
+    avg_against = form.get("avg_goals_against", goals_against / max(matches, 1))
+
+    form_index = clamp(safe_rate(points, matches * 3) * 100, 20, 95)
+    attack_index = clamp(40 + avg_for * 18, 25, 92)
+    defense_index = clamp(90 - avg_against * 18, 25, 92)
+
+    home_bonus = 5 if home_advantage else 0
+    data_quality = clamp(matches * 12, 0, 100)
+
 rating = (
 
     rating = (
