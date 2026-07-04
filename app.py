@@ -202,8 +202,9 @@ def telegram_webhook():
         answer = analyze_with_ai(text)
         send_message(chat_id, answer)
     except Exception as e:
-        print("ERROR:", e)
-        send_message(chat_id, "⚠️ Ошибка анализа. Попробуйте ещё раз.")
+    import traceback
+    traceback.print_exc()
+    send_message(chat_id, f"Ошибка:\n{e}")
 
     return "OK"
 
