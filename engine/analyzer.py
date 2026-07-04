@@ -1,9 +1,5 @@
 from providers.thesportsdb import get_match_data
-from engine.v2_engine import calculate_v2
-from engine.predictions import (
-    calculate_risk_and_confidence,
-    choose_best_pick,
-)
+from engine.v3_engine import analyze_v3
 
 
 def analyze_match_v2(team1, team2):
@@ -12,39 +8,27 @@ def analyze_match_v2(team1, team2):
     team1_form = data["team1_form"]
     team2_form = data["team2_form"]
 
-    v2 = calculate_v2(
-        team1=team1,
-        team2=team2,
+    v3 = analyze_v3(
+        team1=data.get("team1", team1),
+        team2=data.get("team2", team2),
         team1_form=team1_form,
         team2_form=team2_form,
     )
 
-    risk_confidence = calculate_risk_and_confidence(
-        v2["probabilities"],
-        v2["totals"],
-    )
-
-    best_pick = choose_best_pick(
-        v2["probabilities"],
-        v2["totals"],
-    )
-
     return {
-        "team1": team1,
-        "team2": team2,
+        "team1": v3["team1"],
+        "team2": v3["team2"],
         "source": data.get("source", "TheSportsDB"),
         "team1_form": team1_form,
         "team2_form": team2_form,
-        "team1_power": v2["team1_power"],
-        "team2_power": v2["team2_power"],
-        "attack": v2["attack"],
-        "defense": v2["defense"],
-        "form": v2["form"],
-        "probabilities": v2["probabilities"],
-        "totals": v2["totals"],
-        "risk": risk_confidence["risk"],
-        "confidence": risk_confidence["confidence"],
-        "best_pick": best_pick,
+        "team1_rating": v3["team1_rating"],
+        "team2_rating": v3["team2_rating"],
+        "probabilities": v3["probabilities"],
+        "totals": v3["totals"],
+        "best_pick": v3["best_pick"],
+        "risk": v3["risk"],
+        "confidence": v3["confidence"],
+        "data_quality": v3["data_quality"],
     }
 
 
@@ -58,21 +42,24 @@ def format_analysis(result):
 Матч:
 {team1} — {team2}
 
-📊 FLUX Power:
-{team1}: {result["team1_power"]}/100
-{team2}: {result["team2_power"]}/100
+📊 FLUX Rating:
+{team1}: {result["team1_rating"]["rating"]}/100
+{team2}: {result["team2_rating"]["rating"]}/100
 
-⚔️ Attack Index:
-{team1}: {result["attack"]["team1"]}/100
-{team2}: {result["attack"]["team2"]}/100
+⚔️ Attack:
+{team1}: {result["team1_rating"]["attack"]}/100
+{team2}: {result["team2_rating"]["attack"]}/100
 
-🛡 Defense Index:
-{team1}: {result["defense"]["team1"]}/100
-{team2}: {result["defense"]["team2"]}/100
+🛡 Defense:
+{team1}: {result["team1_rating"]["defense"]}/100
+{team2}: {result["team2_rating"]["defense"]}/100
 
-📈 Form Index:
-{team1}: {result["form"]["team1"]}/100
-{team2}: {result["form"]["team2"]}/100
+📈 Form:
+{team1}: {result["team1_rating"]["form"]}/100
+{team2}: {result["team2_rating"]["form"]}/100
+
+📡 Data Quality:
+{result["data_quality"]}/100
 
 🎯 Вероятности FLUX:
 П1 — {result["probabilities"]["p1"]}%
@@ -100,7 +87,7 @@ X — {result["probabilities"]["draw"]}%
 {result["source"]}
 
 Вывод:
-FLUX AI v2 оценивает матч через атаку, защиту, форму и вероятностную модель. Прогноз не является гарантией результата.
+FLUX AI v3 оценивает матч через рейтинг формы, атаки, защиты, качество данных и вероятностную модель. Прогноз не является гарантией результата.
 """
 
 
