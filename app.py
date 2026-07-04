@@ -3,7 +3,7 @@ import requests
 from threading import Thread
 from flask import Flask, request
 from openai import OpenAI
-from football import analyze_match
+from engine.analyzer import analyze_match_v2
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
