@@ -4,7 +4,6 @@ import requests
 API_KEY = os.getenv("THESPORTSDB_API_KEY", "123")
 BASE_URL = f"https://www.thesportsdb.com/api/v1/json/{API_KEY}"
 
-
 ALIASES = {
     "реал мадрид": "Real Madrid",
     "real madrid": "Real Madrid",
@@ -27,14 +26,10 @@ def normalize_team_name(name):
 
 def api_get(endpoint, params=None):
     url = f"{BASE_URL}/{endpoint}"
-    try:
-        response = requests.get(url, params=params or {}, timeout=20)
-        data = response.json()
-        print("THESPORTSDB_DEBUG:", endpoint, params, data, flush=True)
-        return data
-    except Exception as e:
-        print("THESPORTSDB_ERROR:", e, flush=True)
-        return {}
+    response = requests.get(url, params=params or {}, timeout=20)
+    data = response.json()
+    print("THESPORTSDB_DEBUG:", endpoint, params, data, flush=True)
+    return data
 
 
 def search_team(team_name):
@@ -43,7 +38,7 @@ def search_team(team_name):
 
     teams = data.get("teams") or []
     if not teams:
-        return None
+        raise Exception(f"Команда не найдена: {team_name}")
 
     team = teams[0]
 
@@ -58,19 +53,21 @@ def search_team(team_name):
 def get_last_matches(team_id, count=10):
     data = api_get("eventslast.php", {"id": team_id})
     events = data.get("results") or []
-    return events[:count]
+
+    finished = []
+    for event in events:
+        if event.get("intHomeScore") is not None and event.get("intAwayScore") is not None:
+            finished.append(event)
+
+    return finished[:count]
 
 
 def convert_event(event, team_name):
     home = event.get("strHomeTeam")
     away = event.get("strAwayTeam")
 
-    try:
-        home_goals = int(event.get("intHomeScore") or 0)
-        away_goals = int(event.get("intAwayScore") or 0)
-    except Exception:
-        home_goals = 0
-        away_goals = 0
+    home_goals = int(event.get("intHomeScore") or 0)
+    away_goals = int(event.get("intAwayScore") or 0)
 
     if team_name == home:
         gf, ga = home_goals, away_goals
@@ -79,17 +76,16 @@ def convert_event(event, team_name):
     else:
         gf, ga = 0, 0
 
-    result = "draw"
     if gf > ga:
         result = "win"
-    elif gf < ga:
+    elif gf == ga:
+        result = "draw"
+    else:
         result = "loss"
 
     return {
         "home": home,
         "away": away,
-        "home_goals": home_goals,
-        "away_goals": away_goals,
         "goals_for": gf,
         "goals_against": ga,
         "result": result,
@@ -104,8 +100,11 @@ def build_form(matches, team_name):
     goals_against = 0
     counted = 0
 
+    converted = []
+
     for event in matches:
         item = convert_event(event, team_name)
+        converted.append(item)
 
         if item["result"] == "win":
             wins += 1
@@ -121,7 +120,7 @@ def build_form(matches, team_name):
     points = wins * 3 + draws
     matches_count = max(counted, 1)
 
-    return {
+    form = {
         "matches": counted,
         "points": points,
         "wins": wins,
@@ -133,13 +132,14 @@ def build_form(matches, team_name):
         "avg_goals_against": round(goals_against / matches_count, 2),
     }
 
+    print("FORM_DEBUG:", team_name, form, converted, flush=True)
+
+    return form
+
 
 def get_match_data(team1, team2):
     team1_data = search_team(team1)
     team2_data = search_team(team2)
-
-    if not team1_data or not team2_data:
-        raise Exception("Команда не найдена в TheSportsDB")
 
     team1_matches = get_last_matches(team1_data["id"], 10)
     team2_matches = get_last_matches(team2_data["id"], 10)
