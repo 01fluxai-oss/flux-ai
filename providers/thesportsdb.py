@@ -4,24 +4,40 @@ import requests
 API_KEY = os.getenv("THESPORTSDB_API_KEY", "123")
 BASE_URL = f"https://www.thesportsdb.com/api/v1/json/{API_KEY}"
 
-ALIASES = {
-    "реал мадрид": "Real Madrid",
-    "real madrid": "Real Madrid",
-    "псж": "Paris SG",
-    "psg": "Paris SG",
-    "paris saint-germain": "Paris SG",
-    "барселона": "Barcelona",
-    "barcelona": "Barcelona",
-    "ман сити": "Manchester City",
-    "man city": "Manchester City",
-    "бавария": "Bayern Munich",
-    "bayern": "Bayern Munich",
+TEAM_MAP = {
+    "реал": {"id": "133738", "name": "Real Madrid"},
+    "реал мадрид": {"id": "133738", "name": "Real Madrid"},
+    "real madrid": {"id": "133738", "name": "Real Madrid"},
+
+    "псж": {"id": "133714", "name": "Paris Saint-Germain"},
+    "psg": {"id": "133714", "name": "Paris Saint-Germain"},
+    "paris sg": {"id": "133714", "name": "Paris Saint-Germain"},
+    "paris saint-germain": {"id": "133714", "name": "Paris Saint-Germain"},
+
+    "барселона": {"id": "133739", "name": "Barcelona"},
+    "barcelona": {"id": "133739", "name": "Barcelona"},
+
+    "ман сити": {"id": "133613", "name": "Manchester City"},
+    "man city": {"id": "133613", "name": "Manchester City"},
+    "manchester city": {"id": "133613", "name": "Manchester City"},
+
+    "бавария": {"id": "133664", "name": "Bayern Munich"},
+    "bayern": {"id": "133664", "name": "Bayern Munich"},
+    "bayern munich": {"id": "133664", "name": "Bayern Munich"},
 }
 
 
-def normalize_team_name(name):
-    key = name.lower().strip()
-    return ALIASES.get(key, name.strip())
+def normalize_key(name):
+    return name.lower().strip()
+
+
+def search_team(team_name):
+    key = normalize_key(team_name)
+
+    if key in TEAM_MAP:
+        return TEAM_MAP[key]
+
+    raise Exception(f"Команда не найдена в базе FLUX: {team_name}")
 
 
 def api_get(endpoint, params=None):
@@ -30,24 +46,6 @@ def api_get(endpoint, params=None):
     data = response.json()
     print("THESPORTSDB_DEBUG:", endpoint, params, data, flush=True)
     return data
-
-
-def search_team(team_name):
-    team_name = normalize_team_name(team_name)
-    data = api_get("searchteams.php", {"t": team_name})
-
-    teams = data.get("teams") or []
-    if not teams:
-        raise Exception(f"Команда не найдена: {team_name}")
-
-    team = teams[0]
-
-    return {
-        "id": team.get("idTeam"),
-        "name": team.get("strTeam"),
-        "league": team.get("strLeague"),
-        "country": team.get("strCountry"),
-    }
 
 
 def get_last_matches(team_id, count=10):
@@ -74,7 +72,7 @@ def convert_event(event, team_name):
     elif team_name == away:
         gf, ga = away_goals, home_goals
     else:
-        gf, ga = 0, 0
+        return None
 
     if gf > ga:
         result = "win"
@@ -99,11 +97,13 @@ def build_form(matches, team_name):
     goals_for = 0
     goals_against = 0
     counted = 0
-
     converted = []
 
     for event in matches:
         item = convert_event(event, team_name)
+        if not item:
+            continue
+
         converted.append(item)
 
         if item["result"] == "win":
@@ -133,7 +133,6 @@ def build_form(matches, team_name):
     }
 
     print("FORM_DEBUG:", team_name, form, converted, flush=True)
-
     return form
 
 
