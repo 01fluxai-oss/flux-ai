@@ -32,7 +32,7 @@ def calculate_team_rating(form, home_advantage=False):
     defense_index = clamp(90 - avg_against * 18, 25, 92)
 
     home_bonus = 5 if home_advantage else 0
-    data_quality = clamp(matches * 12, 0, 100)
+    "data_quality":     clamp(matches * 12, 0, 100)
 
     rating = (
         form_index * 0.40
