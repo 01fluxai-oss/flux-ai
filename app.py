@@ -33,113 +33,69 @@ def analyze_match_text(text):
 
     if not team1 or not team2:
         return (
-            "Напишите матч в формате:\n"
+            "⚠️ Напиши матч в формате:\n\n"
             "Реал Мадрид — ПСЖ\n"
             "или\n"
             "Real Madrid — PSG"
         )
 
     from engine.analyzer import analyze_and_format
-
     return analyze_and_format(team1, team2)
-    team1, team2 = detect_match(text)
 
-    if not team1 or not team2:
-        return (
-            "Напишите матч в формате:\n"
-            "Реал Мадрид — ПСЖ\n"
-            "или\n"
-            "Real Madrid — PSG"
-        )
 
-    from flux_engine import calculate_match, format_analysis
-
-    team1_form = {
-        "matches": 10,
-        "points": 23,
-        "wins": 7,
-        "draws": 2,
-        "losses": 1,
-        "goals_for": 23,
-        "goals_against": 9,
-        "avg_goals_for": 2.3,
-        "avg_goals_against": 0.9,
-    }
-
-    team2_form = {
-        "matches": 10,
-        "points": 20,
-        "wins": 6,
-        "draws": 2,
-        "losses": 2,
-        "goals_for": 20,
-        "goals_against": 12,
-        "avg_goals_for": 2.0,
-        "avg_goals_against": 1.2,
-    }
-
-    result = calculate_match(
-        team1=team1,
-        team2=team2,
-        team1_form=team1_form,
-        team2_form=team2_form,
+def start_message():
+    return (
+        "👋 Привет! Я FLUX AI Sports v1.0\n\n"
+        "Я анализирую футбольные матчи и рассчитываю:\n"
+        "📊 FLUX Rating\n"
+        "🎯 вероятности П1 / X / П2\n"
+        "⚽ тотал 2.5\n"
+        "🥅 обе забьют\n"
+        "🔥 лучший вариант\n"
+        "⚠️ риск и уверенность\n\n"
+        "Напиши матч, например:\n"
+        "Реал Мадрид — ПСЖ"
     )
 
-    return format_analysis(result, team1_form, team2_form)
-    team1, team2 = detect_match(text)
 
-    if not team1 or not team2:
-        return (
-            "Напишите матч в формате:\n"
-            "Реал Мадрид — ПСЖ\n"
-            "или\n"
-            "Real Madrid — PSG"
-        )
+def help_message():
+    return (
+        "📌 Как пользоваться FLUX AI:\n\n"
+        "Просто напиши матч в формате:\n"
+        "Команда 1 — Команда 2\n\n"
+        "Примеры:\n"
+        "Реал Мадрид — ПСЖ\n"
+        "Barcelona — Bayern\n"
+        "Man City — Real Madrid\n\n"
+        "Команды:\n"
+        "/start — запуск\n"
+        "/help — помощь\n"
+        "/about — о проекте\n"
+        "/status — статус бота"
+    )
 
-    # Временный чистый FLUX Engine v2 без внешнего API
-    return f"""
-⚽ FLUX AI Sports Analysis
 
-Матч:
-{team1} — {team2}
+def about_message():
+    return (
+        "⚽ FLUX AI Sports\n\n"
+        "Это AI-система футбольной аналитики.\n"
+        "FLUX использует данные матчей, форму команд и собственную модель рейтинга.\n\n"
+        "Важно: прогноз не является гарантией результата."
+    )
 
-📊 FLUX Score:
-82 / 100
 
-📈 FLUX Index:
-{team1}: 84 / 100
-{team2}: 78 / 100
-
-🎯 Вероятности FLUX:
-П1 — 48%
-X — 27%
-П2 — 25%
-
-⚽ Тотал 2.5:
-Больше — 64%
-Меньше — 36%
-
-🥅 Обе забьют:
-Да — 69%
-Нет — 31%
-
-🔥 Лучший вариант:
-Обе забьют — Да
-
-⚠️ Риск:
-Средний
-
-🎯 Уверенность:
-8.1 / 10
-
-Вывод:
-FLUX AI оценивает матч на основе базовой модели формы, атаки, защиты и баланса сил. Это аналитический прогноз, а не гарантия результата.
-"""
+def status_message():
+    return (
+        "✅ FLUX AI Sports работает.\n\n"
+        "Версия: v1.0\n"
+        "Режим: Public Beta\n"
+        "Источник данных: TheSportsDB + FLUX Engine"
+    )
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports v2 is running!"
+    return "FLUX AI Sports v1.0 is running!"
 
 
 @app.route("/health")
@@ -154,28 +110,25 @@ def telegram_webhook():
     message = data.get("message", {})
     chat = message.get("chat", {})
     chat_id = chat.get("id")
-    text = message.get("text", "")
+    text = message.get("text", "").strip()
 
     if not chat_id:
         return "OK"
 
     if text == "/start":
-        send_message(
-            chat_id,
-            "👋 Привет! Я FLUX AI Sports v2.\n\n"
-            "Напиши матч, например:\n"
-            "Реал Мадрид — ПСЖ",
-        )
+        send_message(chat_id, start_message())
         return "OK"
 
     if text == "/help":
-        send_message(
-            chat_id,
-            "Формат запроса:\n"
-            "Команда 1 — Команда 2\n\n"
-            "Пример:\n"
-            "Реал Мадрид — ПСЖ",
-        )
+        send_message(chat_id, help_message())
+        return "OK"
+
+    if text == "/about":
+        send_message(chat_id, about_message())
+        return "OK"
+
+    if text == "/status":
+        send_message(chat_id, status_message())
         return "OK"
 
     send_message(chat_id, "⌛ Анализирую матч...")
@@ -185,7 +138,12 @@ def telegram_webhook():
         send_message(chat_id, answer)
     except Exception as e:
         print("ERROR:", e, flush=True)
-        send_message(chat_id, "⚠️ Ошибка анализа. Попробуйте ещё раз.")
+        send_message(
+            chat_id,
+            "⚠️ Не получилось сделать анализ.\n\n"
+            "Проверь формат запроса:\n"
+            "Реал Мадрид — ПСЖ"
+        )
 
     return "OK"
 
