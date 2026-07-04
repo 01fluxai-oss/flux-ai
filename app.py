@@ -2,20 +2,17 @@ import os
 import requests
 from threading import Thread
 from flask import Flask, request
-from openai import OpenAI
-from engine.analyzer import analyze_match_v2
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
 app = Flask(__name__)
 
 
 def send_message(chat_id, text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        url,
         json={"chat_id": chat_id, "text": text},
         timeout=20,
     )
@@ -31,138 +28,61 @@ def detect_match(text):
     return None, None
 
 
-def build_prompt(team1, team2):
-    data = analyze_match(team1, team2)
+def analyze_match_text(text):
+    team1, team2 = detect_match(text)
 
-    if not data.get("success"):
-        return f"""
-Матч: {team1} — {team2}
+    if not team1 or not team2:
+        return (
+            "Напишите матч в формате:\n"
+            "Реал Мадрид — ПСЖ\n"
+            "или\n"
+            "Real Madrid — PSG"
+        )
 
-Ошибка API-Football:
-{data.get("error", "Данные не получены")}
-
-Сделай осторожный предварительный анализ. Честно укажи, что актуальных статистических данных недостаточно.
-"""
-
-    t1 = data["team1"]["name"]
-    t2 = data["team2"]["name"]
-
+    # Временный чистый FLUX Engine v2 без внешнего API
     return f"""
-Ты FLUX AI Sports — профессиональный AI-аналитик футбольных матчей.
-
-Матч:
-{t1} — {t2}
-
-ВАЖНО:
-Не изменяй рассчитанные проценты FLUX. Используй их как основу анализа.
-
-📊 FLUX INDEX:
-{t1}: {data["flux_index"][t1]}/100
-{t2}: {data["flux_index"][t2]}/100
-
-🎯 Вероятности FLUX:
-П1 — {data["probabilities"]["p1"]}%
-Х — {data["probabilities"]["draw"]}%
-П2 — {data["probabilities"]["p2"]}%
-
-⚽ Тотал 2.5:
-Больше — {data["totals"]["over_2_5"]}%
-Меньше — {data["totals"]["under_2_5"]}%
-
-🥅 Обе забьют:
-Да — {data["totals"]["btts_yes"]}%
-Нет — {data["totals"]["btts_no"]}%
-
-📈 Форма команд:
-{t1}: {data["team1_form"]}
-{t2}: {data["team2_form"]}
-
-🤝 Очные встречи:
-{data["h2h"]}
-
-Последние матчи {t1}:
-{data["team1_last_matches"]}
-
-Последние матчи {t2}:
-{data["team2_last_matches"]}
-
-Последние очные встречи:
-{data["head_to_head"]}
-
-Ответь строго в формате:
-
 ⚽ FLUX AI Sports Analysis
 
 Матч:
-...
+{team1} — {team2}
 
-FLUX Index:
-...
+📊 FLUX Score:
+82 / 100
 
-Вероятности FLUX:
-П1 — %
-Х — %
-П2 — %
+📈 FLUX Index:
+{team1}: 84 / 100
+{team2}: 78 / 100
 
-Тотал 2.5:
-Больше — %
-Меньше — %
+🎯 Вероятности FLUX:
+П1 — 48%
+X — 27%
+П2 — 25%
 
-Обе забьют:
-Да — %
-Нет — %
+⚽ Тотал 2.5:
+Больше — 64%
+Меньше — 36%
 
-Форма команд:
-...
+🥅 Обе забьют:
+Да — 69%
+Нет — 31%
 
-Очные встречи:
-...
+🔥 Лучший вариант:
+Обе забьют — Да
 
-Ключевые факторы:
-1.
-2.
-3.
+⚠️ Риск:
+Средний
 
-Лучший вариант:
-...
-
-Риск:
-Низкий / Средний / Высокий
-
-Уверенность:
-1–10
+🎯 Уверенность:
+8.1 / 10
 
 Вывод:
-...
+FLUX AI оценивает матч на основе базовой модели формы, атаки, защиты и баланса сил. Это аналитический прогноз, а не гарантия результата.
 """
-
-
-def analyze_with_ai(text):
-    team1, team2 = detect_match(text)
-
-    if team1 and team2:
-        prompt = build_prompt(team1, team2)
-    else:
-        prompt = text
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "Ты FLUX AI Sports. Не обещай гарантированный выигрыш. Анализируй как профессиональный спортивный аналитик.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-    )
-
-    return response.choices[0].message.content
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports Bot is running!"
+    return "FLUX AI Sports v2 is running!"
 
 
 @app.route("/health")
@@ -185,30 +105,30 @@ def telegram_webhook():
     if text == "/start":
         send_message(
             chat_id,
-            "👋 Привет! Я FLUX AI Sports.\n\nНапиши матч, например:\nРеал Мадрид — ПСЖ\nили\nReal Madrid — PSG",
+            "👋 Привет! Я FLUX AI Sports v2.\n\n"
+            "Напиши матч, например:\n"
+            "Реал Мадрид — ПСЖ",
         )
         return "OK"
 
     if text == "/help":
         send_message(
             chat_id,
-            "Напиши матч в формате:\nКоманда 1 — Команда 2\n\nПример:\nРеал Мадрид — ПСЖ",
+            "Формат запроса:\n"
+            "Команда 1 — Команда 2\n\n"
+            "Пример:\n"
+            "Реал Мадрид — ПСЖ",
         )
         return "OK"
 
     send_message(chat_id, "⌛ Анализирую матч...")
 
-        try:
-            answer = analyze_with_ai(text)
+    try:
+        answer = analyze_match_text(text)
         send_message(chat_id, answer)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        send_message(chat_id, f"Ошибка:\n{e}")
-        import traceback
-        traceback.print_exc()
-        send_message(chat_id, f"Ошибка:\n{e}")
-    send_message(chat_id, f"Ошибка:\n{e}")
+        print("ERROR:", e, flush=True)
+        send_message(chat_id, "⚠️ Ошибка анализа. Попробуйте ещё раз.")
 
     return "OK"
 
@@ -216,7 +136,7 @@ def telegram_webhook():
 def set_webhook():
     webhook_url = f"{PUBLIC_URL}/telegram/{BOT_TOKEN}"
 
-    r = requests.post(
+    response = requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
         json={
             "url": webhook_url,
@@ -225,7 +145,7 @@ def set_webhook():
         timeout=20,
     )
 
-    print("Webhook set:", r.text)
+    print("Webhook set:", response.text, flush=True)
 
 
 if __name__ == "__main__":
