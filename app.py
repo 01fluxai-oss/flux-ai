@@ -39,6 +39,50 @@ def analyze_match_text(text):
             "Real Madrid — PSG"
         )
 
+    from flux_engine import calculate_match, format_analysis
+
+    team1_form = {
+        "matches": 10,
+        "points": 23,
+        "wins": 7,
+        "draws": 2,
+        "losses": 1,
+        "goals_for": 23,
+        "goals_against": 9,
+        "avg_goals_for": 2.3,
+        "avg_goals_against": 0.9,
+    }
+
+    team2_form = {
+        "matches": 10,
+        "points": 20,
+        "wins": 6,
+        "draws": 2,
+        "losses": 2,
+        "goals_for": 20,
+        "goals_against": 12,
+        "avg_goals_for": 2.0,
+        "avg_goals_against": 1.2,
+    }
+
+    result = calculate_match(
+        team1=team1,
+        team2=team2,
+        team1_form=team1_form,
+        team2_form=team2_form,
+    )
+
+    return format_analysis(result, team1_form, team2_form)
+    team1, team2 = detect_match(text)
+
+    if not team1 or not team2:
+        return (
+            "Напишите матч в формате:\n"
+            "Реал Мадрид — ПСЖ\n"
+            "или\n"
+            "Real Madrid — PSG"
+        )
+
     # Временный чистый FLUX Engine v2 без внешнего API
     return f"""
 ⚽ FLUX AI Sports Analysis
