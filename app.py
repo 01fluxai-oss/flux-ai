@@ -7,8 +7,8 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
 
 CHANNEL_ID = "-1003654137478"
-CHANNEL_URL = "https://t.me/FluxAIDaily"
 CHANNEL_USERNAME = "@FluxAIDaily"
+CHANNEL_URL = "https://t.me/FluxAIDaily"
 
 app = Flask(__name__)
 
@@ -29,28 +29,6 @@ def send_message(chat_id, text, reply_markup=None):
         print("SEND_MESSAGE_ERROR:", e, flush=True)
 
 
-def main_menu():
-    return {
-        "keyboard": [
-            ["⚽ Анализ матча"],
-            ["🏆 ТОП-3 дня"],
-            ["💎 FLUX PRO"],
-            ["ℹ️ О проекте", "📊 Статус"],
-        ],
-        "resize_keyboard": True,
-        "one_time_keyboard": False,
-    }
-
-
-def subscribe_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "📢 Подписаться на канал", "url": CHANNEL_URL}],
-            [{"text": "✅ Проверить подписку", "callback_data": "check_subscription"}],
-        ]
-    }
-
-
 def answer_callback(callback_id, text=""):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
 
@@ -68,11 +46,29 @@ def answer_callback(callback_id, text=""):
         print("ANSWER_CALLBACK_ERROR:", e, flush=True)
 
 
+def main_menu():
+    return {
+        "keyboard": [
+            ["⚽ Анализ матча"],
+            ["🏆 ТОП-3 дня"],
+            ["💎 FLUX PRO"],
+            ["ℹ️ О проекте", "📊 Статус"],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": False,
+    }
+
+
+def subscribe_keyboard():
+    return {
+        "inline_keyboard": [
+            [{"text": "🏆 Подписаться на канал", "url": CHANNEL_URL}],
+            [{"text": "✅ Проверить подписку", "callback_data": "check_subscription"}],
+        ]
+    }
+
+
 def is_subscribed(user_id):
-    """
-    Мягкая проверка подписки.
-    Если Telegram отвечает ошибкой, бот не блокирует пользователя.
-    """
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
         response = requests.get(
@@ -88,22 +84,22 @@ def is_subscribed(user_id):
 
         if not data.get("ok"):
             print("SUBSCRIPTION_CHECK_NOT_OK:", data, flush=True)
-            return True
+            return False
 
         status = data.get("result", {}).get("status")
         return status in ["member", "administrator", "creator"]
 
     except Exception as e:
         print("SUBSCRIPTION_CHECK_ERROR:", e, flush=True)
-        return True
+        return False
 
 
 def subscription_message():
     return (
-        "🔒 Для использования FLUX AI подпишись на официальный канал.\n\n"
+        "🔒 Для использования FLUX AI нужно подписаться на официальный канал.\n\n"
         "🏆 FLUX AI DAILY\n"
         f"{CHANNEL_USERNAME}\n\n"
-        "1️⃣ Нажми «📢 Подписаться на канал»\n"
+        "1️⃣ Нажми «🏆 Подписаться на канал»\n"
         "2️⃣ Подпишись\n"
         "3️⃣ Вернись сюда и нажми «✅ Проверить подписку»"
     )
@@ -193,7 +189,7 @@ def analyze_match_text(text):
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v2.1\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v2.2\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
@@ -260,7 +256,7 @@ def pro_message():
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v2.1\n"
+        "Версия: PRO v2.2\n"
         "Режим: Public Beta\n"
         f"Канал: {CHANNEL_USERNAME}\n"
         "Источник данных: TheSportsDB + FLUX Engine\n"
@@ -284,7 +280,7 @@ def today_top_3_message():
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v2.1 is running!"
+    return "FLUX AI Sports PRO v2.2 is running!"
 
 
 @app.route("/health")
