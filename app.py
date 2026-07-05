@@ -104,6 +104,7 @@ def analyze_match_text(text):
         return analyze_and_format(team1, team2)
 
     messages = []
+
     for index, (team1, team2) in enumerate(matches[:5], start=1):
         try:
             result = analyze_and_format(team1, team2)
@@ -119,7 +120,7 @@ def analyze_match_text(text):
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v1.3\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v1.4\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
@@ -149,8 +150,19 @@ def help_message():
         "/help — помощь\n"
         "/about — о проекте\n"
         "/status — статус бота\n"
-        "/today — ТОП-3 прогнозов дня"
+        "/today — ТОП-3 прогнозов дня\n"
+        "/pro — FLUX PRO"
     )
+
+
+def about_message():
+    return (
+        "⚽ FLUX AI Sports PRO\n\n"
+        "AI-система футбольной аналитики.\n"
+        "FLUX анализирует форму команд, атаку, защиту, вероятности, тоталы и формирует рекомендации.\n\n"
+        "Важно: прогноз не является гарантией результата."
+    )
+
 
 def pro_message():
     return (
@@ -165,14 +177,15 @@ def pro_message():
         "• Полная статистика FLUX AI\n\n"
         "💰 Стоимость:\n"
         "$9.99 / месяц\n\n"
-        "🚀 Скоро будет доступно."
+        "🚀 Скоро будет доступно.\n\n"
+        "Пока FLUX PRO работает в режиме подготовки."
     )
 
 
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v1.3\n"
+        "Версия: PRO v1.4\n"
         "Режим: Public Beta\n"
         "Источник данных: TheSportsDB + FLUX Engine\n"
         "Статус: Online"
@@ -199,7 +212,7 @@ def today_top_3_message():
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v1.3 is running!"
+    return "FLUX AI Sports PRO v1.4 is running!"
 
 
 @app.route("/health")
@@ -229,6 +242,8 @@ def telegram_webhook():
         text = "/about"
     elif text == "📊 Статус":
         text = "/status"
+    elif text == "💎 FLUX PRO":
+        text = "/pro"
     elif text == "⚽ Анализ матча":
         send_message(
             chat_id,
@@ -253,12 +268,17 @@ def telegram_webhook():
         send_message(chat_id, status_message(), reply_markup=main_menu())
         return "OK"
 
+    if text == "/pro":
+        send_message(chat_id, pro_message(), reply_markup=main_menu())
+        return "OK"
+
     if text == "/today":
         send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...", reply_markup=main_menu())
         send_message(chat_id, today_top_3_message(), reply_markup=main_menu())
         return "OK"
 
     matches = detect_matches(text)
+
     if len(matches) > 1:
         send_message(chat_id, f"⌛ Анализирую {len(matches)} матчей...", reply_markup=main_menu())
     else:
