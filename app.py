@@ -19,13 +19,31 @@ def send_message(chat_id, text):
 
 
 def detect_match(text):
-    separators = ["—", "-", " vs ", " VS ", " v ", " V "]
+    text = text.strip()
+
+    separators = [
+        " — ",
+        " – ",
+        " - ",
+        "—",
+        "–",
+        "-",
+        " vs ",
+        " VS ",
+        " Vs ",
+        " v ",
+        " V ",
+    ]
 
     for sep in separators:
         if sep in text:
             parts = text.split(sep, 1)
             if len(parts) == 2:
-                return parts[0].strip(), parts[1].strip()
+                team1 = parts[0].strip()
+                team2 = parts[1].strip()
+
+                if team1 and team2:
+                    return team1, team2
 
     return None, None
 
