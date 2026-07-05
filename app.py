@@ -144,8 +144,14 @@ def telegram_webhook():
         return "OK"
 
     if text == "/today":
+    send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...")
+    try:
+        from engine.today import today_top_3
+        send_message(chat_id, today_top_3())
+    except Exception as e:
+        print("TODAY_ERROR:", e, flush=True)
         send_message(chat_id, today_message())
-        return "OK"
+    return "OK"
 
     send_message(chat_id, "⌛ Анализирую матч...")
 
