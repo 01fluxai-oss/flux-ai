@@ -15,10 +15,7 @@ app = Flask(__name__)
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-    }
+    payload = {"chat_id": chat_id, "text": text}
 
     if reply_markup:
         payload["reply_markup"] = reply_markup
@@ -31,15 +28,10 @@ def send_message(chat_id, text, reply_markup=None):
 
 def answer_callback(callback_id, text=""):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
-
     try:
         requests.post(
             url,
-            json={
-                "callback_query_id": callback_id,
-                "text": text,
-                "show_alert": False,
-            },
+            json={"callback_query_id": callback_id, "text": text, "show_alert": False},
             timeout=20,
         )
     except Exception as e:
@@ -51,7 +43,7 @@ def main_menu():
         "keyboard": [
             ["⚽ Анализ матча"],
             ["🏆 ТОП-3 дня"],
-            ["💎 FLUX PRO"],
+            ["🏆 Канал", "💎 FLUX PRO"],
             ["ℹ️ О проекте", "📊 Статус"],
         ],
         "resize_keyboard": True,
@@ -70,16 +62,11 @@ def subscribe_keyboard():
 
 def is_subscribed(user_id):
     try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
         response = requests.get(
-            url,
-            params={
-                "chat_id": CHANNEL_ID,
-                "user_id": user_id,
-            },
+            f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember",
+            params={"chat_id": CHANNEL_ID, "user_id": user_id},
             timeout=20,
         )
-
         data = response.json()
 
         if not data.get("ok"):
@@ -118,23 +105,14 @@ def normalize_text(text):
 def detect_match(line):
     line = normalize_text(line)
 
-    separators = [
-        " — ",
-        " vs ",
-        " VS ",
-        " Vs ",
-        " v ",
-        " V ",
-    ]
+    separators = [" — ", " vs ", " VS ", " Vs ", " v ", " V "]
 
     for sep in separators:
         if sep in line:
             parts = line.split(sep, 1)
-
             if len(parts) == 2:
                 team1 = parts[0].strip()
                 team2 = parts[1].strip()
-
                 if team1 and team2:
                     return team1, team2
 
@@ -180,16 +158,14 @@ def analyze_match_text(text):
             messages.append(f"#{index}\n{result}")
         except Exception as e:
             print("MULTI_MATCH_ERROR:", team1, team2, e, flush=True)
-            messages.append(
-                f"#{index}\n⚠️ Не получилось проанализировать:\n{team1} — {team2}"
-            )
+            messages.append(f"#{index}\n⚠️ Не получилось проанализировать:\n{team1} — {team2}")
 
     return "\n\n".join(messages)
 
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v2.2\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v2.3\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
@@ -220,6 +196,7 @@ def help_message():
         "/about — о проекте\n"
         "/status — статус бота\n"
         "/today — ТОП-3 прогнозов дня\n"
+        "/channel — канал FLUX AI\n"
         "/pro — FLUX PRO"
     )
 
@@ -251,6 +228,8 @@ def pro_message():
         "$9.99 / месяц\n\n"
         "🚀 Скоро будет доступно."
     )
+
+
 def channel_message():
     return (
         "🏆 FLUX AI DAILY\n\n"
@@ -261,13 +240,14 @@ def channel_message():
         "🔥 Лучшие ставки\n"
         "💎 Новости FLUX PRO\n\n"
         "📢 Подписаться:\n"
-        f"{CHANNEL_USERNAME}"
+        f"{CHANNEL_URL}"
     )
+
 
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v2.2\n"
+        "Версия: PRO v2.3\n"
         "Режим: Public Beta\n"
         f"Канал: {CHANNEL_USERNAME}\n"
         "Источник данных: TheSportsDB + FLUX Engine\n"
@@ -291,7 +271,7 @@ def today_top_3_message():
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v2.2 is running!"
+    return "FLUX AI Sports PRO v2.3 is running!"
 
 
 @app.route("/health")
@@ -341,6 +321,8 @@ def telegram_webhook():
 
     if text == "🏆 ТОП-3 дня":
         text = "/today"
+    elif text == "🏆 Канал":
+        text = "/channel"
     elif text == "ℹ️ О проекте":
         text = "/about"
     elif text == "📊 Статус":
@@ -373,6 +355,18 @@ def telegram_webhook():
 
     if text == "/pro":
         send_message(chat_id, pro_message(), reply_markup=main_menu())
+        return "OK"
+
+    if text == "/channel":
+        send_message(
+            chat_id,
+            channel_message(),
+            reply_markup={
+                "inline_keyboard": [
+                    [{"text": "🏆 Открыть канал", "url": CHANNEL_URL}]
+                ]
+            },
+        )
         return "OK"
 
     if text == "/today":
