@@ -2,6 +2,9 @@ from providers.thesportsdb import get_match_data
 from engine.v3_engine import analyze_v3
 
 
+CHANNEL_URL = "https://t.me/FluxAIDaily"
+
+
 def analyze_match_v2(team1, team2):
     data = get_match_data(team1, team2)
 
@@ -18,7 +21,7 @@ def analyze_match_v2(team1, team2):
     return {
         "team1": v3["team1"],
         "team2": v3["team2"],
-        "source": data.get("source", "TheSportsDB"),
+        "source": data.get("source", "TheSportsDB + FLUX fallback"),
         "team1_form": team1_form,
         "team2_form": team2_form,
         "team1_rating": v3["team1_rating"],
@@ -81,7 +84,6 @@ def build_ai_comment(result, main_pick, main_value):
 
     probs = result["probabilities"]
 
-    # фаворит
     if probs["p1"] > probs["p2"]:
         favorite = team1
     elif probs["p2"] > probs["p1"]:
@@ -90,69 +92,40 @@ def build_ai_comment(result, main_pick, main_value):
         favorite = "ни одна из команд"
 
     lines = []
-
     lines.append("🧠 FLUX AI Coach")
     lines.append("")
-    lines.append(
-        f"После анализа более 30 игровых факторов модель считает фаворитом матча: {favorite}."
-    )
+    lines.append(f"Модель считает фаворитом матча: {favorite}.")
     lines.append("")
 
-    # рейтинг
     if abs(rating1 - rating2) >= 10:
         better = team1 if rating1 > rating2 else team2
-        lines.append(
-            f"⭐ Общий рейтинг выше у {better}, что заметно влияет на вероятность исхода."
-        )
+        lines.append(f"⭐ Общий рейтинг выше у {better}.")
     else:
-        lines.append(
-            "⭐ По общему рейтингу команды находятся примерно на одном уровне."
-        )
+        lines.append("⭐ По общему рейтингу команды близки.")
 
-    # форма
     if abs(form1 - form2) >= 12:
         better = team1 if form1 > form2 else team2
-        lines.append(
-            f"📈 Последняя форма значительно лучше у {better}."
-        )
+        lines.append(f"📈 Лучшую текущую форму показывает {better}.")
     else:
-        lines.append(
-            "📈 По текущей форме существенного преимущества нет."
-        )
+        lines.append("📈 По текущей форме сильного преимущества нет.")
 
-    # атака
     if attack1 > attack2 + 10:
-        lines.append(
-            f"⚔️ Атака {team1} выглядит опаснее средней."
-        )
+        lines.append(f"⚔️ Атака {team1} выглядит опаснее.")
     elif attack2 > attack1 + 10:
-        lines.append(
-            f"⚔️ Атака {team2} выглядит опаснее средней."
-        )
+        lines.append(f"⚔️ Атака {team2} выглядит опаснее.")
 
-    # защита
     if defense1 > defense2 + 10:
-        lines.append(
-            f"🛡 Защита {team1} выглядит надежнее."
-        )
+        lines.append(f"🛡 Защита {team1} выглядит надежнее.")
     elif defense2 > defense1 + 10:
-        lines.append(
-            f"🛡 Защита {team2} выглядит надежнее."
-        )
+        lines.append(f"🛡 Защита {team2} выглядит надежнее.")
 
-    # тоталы
     over25 = result["totals"].get("over_2_5", 0)
 
     if over25 >= 70:
-        lines.append(
-            "⚽ Модель ожидает достаточно результативную игру."
-        )
+        lines.append("⚽ Модель ожидает результативную игру.")
     elif over25 <= 40:
-        lines.append(
-            "⚽ Вероятнее осторожный матч с небольшим количеством голов."
-        )
+        lines.append("⚽ Вероятнее осторожный матч с небольшим количеством голов.")
 
-    # уверенность
     if main_value >= 80:
         level = "очень высокая"
     elif main_value >= 70:
@@ -163,18 +136,10 @@ def build_ai_comment(result, main_pick, main_value):
         level = "умеренная"
 
     lines.append("")
-    lines.append(
-        f"🎯 Главная рекомендация модели: {main_pick}."
-    )
-
-    lines.append(
-        f"Вероятность оценивается как {level} ({main_value}%)."
-    )
-
+    lines.append(f"🎯 Главная рекомендация: {main_pick}.")
+    lines.append(f"Вероятность оценивается как {level} ({main_value}%).")
     lines.append("")
-    lines.append(
-        "💡 FLUX AI рекомендует рассматривать этот прогноз как наиболее сильный вариант для данного матча."
-    )
+    lines.append("💡 FLUX AI рекомендует рассматривать этот прогноз как основной вариант.")
 
     return "\n".join(lines)
 
@@ -185,6 +150,7 @@ def format_analysis(result):
 
     probabilities = result["probabilities"]
     totals = result["totals"]
+
     score = result.get("predicted_score", {}).get("score", "—")
     top_3 = result["best_pick"].get("top_3", [])
     top_3_text = format_top_3(result["best_pick"])
@@ -265,8 +231,6 @@ X — {probabilities["draw"]}%
 
 ━━━━━━━━━━━━━━━━━━
 
-🧠 Вердикт FLUX AI
-
 {ai_comment}
 
 🏆 Основной прогноз:
@@ -283,12 +247,13 @@ X — {probabilities["draw"]}%
 ━━━━━━━━━━━━━━━━━━
 
 🏆 Ежедневные ТОП-3 прогнозы FLUX AI:
-https://t.me/FluxAIDaily
+{CHANNEL_URL}
 
 📢 Подпишись на канал, чтобы не пропускать лучшие прогнозы.
 
 Важно:
 Прогноз не является гарантией результата.
+"""
 
 
 def analyze_and_format(team1, team2):
