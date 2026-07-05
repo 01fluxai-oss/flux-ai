@@ -154,13 +154,15 @@ def channel_message():
 def pro_message():
     return (
         "💎 FLUX AI PRO\n\n"
-        "Скоро будет доступно:\n\n"
+        "Полный доступ к возможностям FLUX AI:\n\n"
         "🔥 VIP-прогнозы дня\n"
         "🎯 Экспрессы\n"
         "💰 Value Bets\n"
         "⚡ Ранние уведомления\n"
         "📊 Полная статистика\n\n"
-        "💰 Цена: $9.99 / месяц"
+        "💳 Цена: $9.99 / месяц\n\n"
+        "Оформить подписку:\n"
+        "https://buy.stripe.com/test_4gM14o2Pb2Cg5vNdDzefC00"
     )
 
 
