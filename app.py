@@ -238,15 +238,15 @@ def telegram_webhook():
     data = request.get_json(force=True)
 
     message = data.get("message", {})
-chat = message.get("chat", {})
-user = message.get("from", {})
+    chat = message.get("chat", {})
+    user = message.get("from", {})
 
-chat_id = chat.get("id")
-user_id = user.get("id")
-text = message.get("text", "").strip()
+    chat_id = chat.get("id")
+    user_id = user.get("id")
+    text = message.get("text", "").strip()
 
-if user_id:
-    add_user(user)
+    if user_id:
+        add_user(user)
 
     if not chat_id:
         return "OK"
