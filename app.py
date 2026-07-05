@@ -2,6 +2,7 @@ import os
 import requests
 from threading import Thread
 from flask import Flask, request
+from database.db import add_user, get_user, is_pro
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
@@ -237,9 +238,15 @@ def telegram_webhook():
     data = request.get_json(force=True)
 
     message = data.get("message", {})
-    chat = message.get("chat", {})
-    chat_id = chat.get("id")
-    text = message.get("text", "").strip()
+chat = message.get("chat", {})
+user = message.get("from", {})
+
+chat_id = chat.get("id")
+user_id = user.get("id")
+text = message.get("text", "").strip()
+
+if user_id:
+    add_user(user)
 
     if not chat_id:
         return "OK"
