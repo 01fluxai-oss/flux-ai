@@ -50,7 +50,108 @@ def format_top_3(best_pick):
     return "\n".join(lines)
 
 
+def strength_icon(value):
+    if value >= 75:
+        return "🟢"
+    if value >= 60:
+        return "🟡"
+    return "🔴"
+
+
+def confidence_stars(confidence):
+    filled = max(1, min(10, int(confidence)))
+    return "★" * filled + "☆" * (10 - filled)
+
+
 def format_analysis(result):
+    team1 = result["team1"]
+    team2 = result["team2"]
+
+    probabilities = result["probabilities"]
+    totals = result["totals"]
+    score = result.get("predicted_score", {}).get("score", "—")
+    top_3 = result["best_pick"].get("top_3", [])
+
+    top_lines = []
+    medals = ["🥇", "🥈", "🥉"]
+
+    for index, item in enumerate(top_3[:3]):
+        name, value = item
+        top_lines.append(f"{medals[index]} {name} — {value}% {strength_icon(value)}")
+
+    top_3_text = "\n".join(top_lines)
+
+    confidence = result["confidence"]
+    stars = confidence_stars(confidence)
+
+    return f"""
+🏆 FLUX AI PRO
+
+⚽ Матч
+{team1} — {team2}
+
+━━━━━━━━━━━━━━━━━━
+
+⭐ Сила команд
+{team1}: {result["team1_rating"]["rating"]}/100
+{team2}: {result["team2_rating"]["rating"]}/100
+
+📈 Форма
+{team1}: {result["team1_rating"]["form"]}/100
+{team2}: {result["team2_rating"]["form"]}/100
+
+⚔️ Атака
+{team1}: {result["team1_rating"]["attack"]}/100
+{team2}: {result["team2_rating"]["attack"]}/100
+
+🛡 Защита
+{team1}: {result["team1_rating"]["defense"]}/100
+{team2}: {result["team2_rating"]["defense"]}/100
+
+━━━━━━━━━━━━━━━━━━
+
+🎯 Исход
+П1 — {probabilities["p1"]}%
+X — {probabilities["draw"]}%
+П2 — {probabilities["p2"]}%
+
+━━━━━━━━━━━━━━━━━━
+
+🏆 ТОП-3 рекомендации
+{top_3_text}
+
+━━━━━━━━━━━━━━━━━━
+
+⚽ Голы
+ТБ 1.5 — {totals.get("over_1_5", "—")}%
+ТБ 2.5 — {totals.get("over_2_5", "—")}%
+ТБ 3.5 — {totals.get("over_3_5", "—")}%
+
+🥅 Обе забьют
+Да — {totals["btts_yes"]}%
+Нет — {totals["btts_no"]}%
+
+🎱 Возможный счет
+{score}
+
+━━━━━━━━━━━━━━━━━━
+
+⭐ Индекс уверенности
+{stars}
+{confidence}/10
+
+⚠️ Риск
+{result["risk"]}
+
+📊 Качество данных
+{result["data_quality"]}/100
+
+Источник:
+{result["source"]}
+
+Важно:
+Прогноз не является гарантией результата.
+"""
     team1 = result["team1"]
     team2 = result["team2"]
     probabilities = result["probabilities"]
