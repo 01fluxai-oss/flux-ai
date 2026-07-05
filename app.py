@@ -20,11 +20,13 @@ def send_message(chat_id, text):
 
 def detect_match(text):
     separators = ["—", "-", " vs ", " VS ", " v ", " V "]
+
     for sep in separators:
         if sep in text:
             parts = text.split(sep, 1)
             if len(parts) == 2:
                 return parts[0].strip(), parts[1].strip()
+
     return None, None
 
 
@@ -36,7 +38,7 @@ def analyze_match_text(text):
             "⚠️ Напиши матч в формате:\n\n"
             "Реал Мадрид — ПСЖ\n"
             "или\n"
-            "Real Madrid — PSG"
+            "Liverpool — Arsenal"
         )
 
     from engine.analyzer import analyze_and_format
@@ -45,16 +47,21 @@ def analyze_match_text(text):
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports v1.0\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v1.1\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
-        "⚽ тотал 2.5\n"
+        "🏆 ТОП-3 рекомендации\n"
+        "⚽ тоталы\n"
         "🥅 обе забьют\n"
-        "🔥 лучший вариант\n"
+        "🧠 вердикт FLUX AI\n"
         "⚠️ риск и уверенность\n\n"
         "Напиши матч, например:\n"
-        "Реал Мадрид — ПСЖ"
+        "Liverpool — Arsenal\n\n"
+        "Команды:\n"
+        "/today — ТОП-3 прогнозов дня\n"
+        "/help — помощь\n"
+        "/status — статус"
     )
 
 
@@ -65,6 +72,8 @@ def help_message():
         "Команда 1 — Команда 2\n\n"
         "Примеры:\n"
         "Реал Мадрид — ПСЖ\n"
+        "Liverpool — Arsenal\n"
+        "Inter — Milan\n"
         "Barcelona — Bayern\n"
         "Man City — Real Madrid\n\n"
         "Команды:\n"
@@ -78,9 +87,15 @@ def help_message():
 
 def about_message():
     return (
-        "⚽ FLUX AI Sports\n\n"
+        "⚽ FLUX AI Sports PRO\n\n"
         "Это AI-система футбольной аналитики.\n"
         "FLUX использует данные матчей, форму команд и собственную модель рейтинга.\n\n"
+        "Система рассчитывает:\n"
+        "🎯 вероятности исходов\n"
+        "🏆 ТОП-3 рекомендации\n"
+        "⚽ тоталы\n"
+        "🥅 обе забьют\n"
+        "🧠 итоговый вердикт\n\n"
         "Важно: прогноз не является гарантией результата."
     )
 
@@ -88,26 +103,34 @@ def about_message():
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: v1.0\n"
+        "Версия: PRO v1.1\n"
         "Режим: Public Beta\n"
-        "Источник данных: TheSportsDB + FLUX Engine"
+        "Источник данных: TheSportsDB + FLUX Engine\n"
+        "Статус: Online"
     )
 
 
 def today_message():
     return (
-        "🏆 ТОП-3 прогнозов FLUX AI на сегодня\n\n"
-        "⏳ Анализ сегодняшних матчей находится в разработке.\n\n"
-        "Очень скоро здесь будут автоматически отображаться:\n"
-        "🥇 Лучший прогноз дня\n"
-        "🥈 Второй лучший прогноз\n"
-        "🥉 Третий лучший прогноз"
+        "🏆 FLUX AI DAILY\n\n"
+        "ТОП-3 прогнозов дня пока формируется.\n\n"
+        "Попробуй отправить матч вручную:\n"
+        "Liverpool — Arsenal"
     )
+
+
+def today_top_3_message():
+    try:
+        from engine.today import today_top_3
+        return today_top_3()
+    except Exception as e:
+        print("TODAY_ERROR:", e, flush=True)
+        return today_message()
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports v1.0 is running!"
+    return "FLUX AI Sports PRO v1.1 is running!"
 
 
 @app.route("/health")
@@ -127,6 +150,10 @@ def telegram_webhook():
     if not chat_id:
         return "OK"
 
+    if not text:
+        send_message(chat_id, help_message())
+        return "OK"
+
     if text == "/start":
         send_message(chat_id, start_message())
         return "OK"
@@ -144,14 +171,9 @@ def telegram_webhook():
         return "OK"
 
     if text == "/today":
-    send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...")
-    try:
-        from engine.today import today_top_3
-        send_message(chat_id, today_top_3())
-    except Exception as e:
-        print("TODAY_ERROR:", e, flush=True)
-        send_message(chat_id, today_message())
-    return "OK"
+        send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...")
+        send_message(chat_id, today_top_3_message())
+        return "OK"
 
     send_message(chat_id, "⌛ Анализирую матч...")
 
@@ -159,12 +181,12 @@ def telegram_webhook():
         answer = analyze_match_text(text)
         send_message(chat_id, answer)
     except Exception as e:
-        print("ERROR:", e, flush=True)
+        print("MATCH_ANALYSIS_ERROR:", e, flush=True)
         send_message(
             chat_id,
             "⚠️ Не получилось сделать анализ.\n\n"
             "Проверь формат запроса:\n"
-            "Реал Мадрид — ПСЖ",
+            "Liverpool — Arsenal",
         )
 
     return "OK"
