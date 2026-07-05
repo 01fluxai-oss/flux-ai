@@ -63,6 +63,57 @@ def format_top_3(best_pick):
     return "\n".join(lines)
 
 
+def build_ai_comment(result, main_pick, main_value):
+    team1 = result["team1"]
+    team2 = result["team2"]
+
+    r1 = result["team1_rating"]["rating"]
+    r2 = result["team2_rating"]["rating"]
+
+    form1 = result["team1_rating"]["form"]
+    form2 = result["team2_rating"]["form"]
+
+    attack1 = result["team1_rating"]["attack"]
+    attack2 = result["team2_rating"]["attack"]
+
+    defense1 = result["team1_rating"]["defense"]
+    defense2 = result["team2_rating"]["defense"]
+
+    if r1 > r2:
+        stronger = team1
+    elif r2 > r1:
+        stronger = team2
+    else:
+        stronger = "обе команды"
+
+    comment = (
+        "FLUX AI сравнил форму, атаку, защиту и вероятностную модель.\n\n"
+    )
+
+    if abs(r1 - r2) >= 12:
+        comment += f"• По общему рейтингу преимущество имеет {stronger}.\n"
+    else:
+        comment += "• По общему рейтингу матч выглядит достаточно равным.\n"
+
+    if abs(form1 - form2) >= 15:
+        better_form = team1 if form1 > form2 else team2
+        comment += f"• Лучшую текущую форму показывает {better_form}.\n"
+
+    if attack1 >= 75 or attack2 >= 75:
+        comment += "• Атакующий потенциал матча выше среднего.\n"
+
+    if defense1 >= 75 and defense2 >= 75:
+        comment += "• Обе команды имеют достаточно сильную защиту.\n"
+    elif defense1 < 55 or defense2 < 55:
+        comment += "• В обороне одной из команд есть заметные риски.\n"
+
+    comment += (
+        f"\nГлавный выбор модели — {main_pick} с вероятностью {main_value}%."
+    )
+
+    return comment
+
+
 def format_analysis(result):
     team1 = result["team1"]
     team2 = result["team2"]
@@ -82,6 +133,8 @@ def format_analysis(result):
     else:
         main_pick = result["best_pick"]["pick"]
         main_value = result["best_pick"]["value"]
+
+    ai_comment = build_ai_comment(result, main_pick, main_value)
 
     return f"""
 🏆 FLUX AI PRO
@@ -149,7 +202,7 @@ X — {probabilities["draw"]}%
 
 🧠 Вердикт FLUX AI
 
-📊 После анализа формы, атаки, защиты и статистической модели FLUX AI сделал следующий вывод.
+{ai_comment}
 
 🏆 Основной прогноз:
 👉 {main_pick}
@@ -157,13 +210,16 @@ X — {probabilities["draw"]}%
 🎯 Вероятность:
 {main_value}%
 
-💬 Почему именно этот прогноз?
+━━━━━━━━━━━━━━━━━━
 
-• Модель сравнила текущую форму обеих команд.
-• Проанализировала эффективность атаки и защиты.
-• Учла статистические вероятности исходов и голов.
-• Выбрала вариант с максимальной вероятностью.
+Источник:
+{result["source"]}
 
-⚠️ Помните:
-Даже самый высокий процент не гарантирует исход матча. Используйте прогноз как аналитический инструмент.
+Важно:
+Прогноз не является гарантией результата.
+"""
 
+
+def analyze_and_format(team1, team2):
+    result = analyze_match_v2(team1, team2)
+    return format_analysis(result)
