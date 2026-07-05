@@ -23,20 +23,10 @@ def send_message(chat_id, text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
-    requests.post(url, json=payload, timeout=20)
-
-
-def answer_callback(callback_id, text=""):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
-    requests.post(
-        url,
-        json={
-            "callback_query_id": callback_id,
-            "text": text,
-            "show_alert": False,
-        },
-        timeout=20,
-    )
+    try:
+        requests.post(url, json=payload, timeout=20)
+    except Exception as e:
+        print("SEND_MESSAGE_ERROR:", e, flush=True)
 
 
 def main_menu():
@@ -61,7 +51,28 @@ def subscribe_keyboard():
     }
 
 
+def answer_callback(callback_id, text=""):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
+
+    try:
+        requests.post(
+            url,
+            json={
+                "callback_query_id": callback_id,
+                "text": text,
+                "show_alert": False,
+            },
+            timeout=20,
+        )
+    except Exception as e:
+        print("ANSWER_CALLBACK_ERROR:", e, flush=True)
+
+
 def is_subscribed(user_id):
+    """
+    Мягкая проверка подписки.
+    Если Telegram отвечает ошибкой, бот не блокирует пользователя.
+    """
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
         response = requests.get(
@@ -72,23 +83,24 @@ def is_subscribed(user_id):
             },
             timeout=20,
         )
+
         data = response.json()
 
         if not data.get("ok"):
             print("SUBSCRIPTION_CHECK_NOT_OK:", data, flush=True)
-            return False
+            return True
 
         status = data.get("result", {}).get("status")
         return status in ["member", "administrator", "creator"]
 
     except Exception as e:
         print("SUBSCRIPTION_CHECK_ERROR:", e, flush=True)
-        return False
+        return True
 
 
 def subscription_message():
     return (
-        "🔒 Для использования FLUX AI нужно подписаться на официальный канал.\n\n"
+        "🔒 Для использования FLUX AI подпишись на официальный канал.\n\n"
         "🏆 FLUX AI DAILY\n"
         f"{CHANNEL_USERNAME}\n\n"
         "1️⃣ Нажми «📢 Подписаться на канал»\n"
@@ -97,16 +109,21 @@ def subscription_message():
     )
 
 
-def detect_match(text):
-    text = text.strip()
+def normalize_text(text):
+    return (
+        text.replace("—", " — ")
+        .replace("–", " — ")
+        .replace("-", " — ")
+        .replace("  ", " ")
+        .strip()
+    )
+
+
+def detect_match(line):
+    line = normalize_text(line)
 
     separators = [
         " — ",
-        " – ",
-        " - ",
-        "—",
-        "–",
-        "-",
         " vs ",
         " VS ",
         " Vs ",
@@ -115,8 +132,8 @@ def detect_match(text):
     ]
 
     for sep in separators:
-        if sep in text:
-            parts = text.split(sep, 1)
+        if sep in line:
+            parts = line.split(sep, 1)
 
             if len(parts) == 2:
                 team1 = parts[0].strip()
@@ -176,7 +193,7 @@ def analyze_match_text(text):
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v2.0\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v2.1\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
@@ -243,7 +260,7 @@ def pro_message():
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v2.0\n"
+        "Версия: PRO v2.1\n"
         "Режим: Public Beta\n"
         f"Канал: {CHANNEL_USERNAME}\n"
         "Источник данных: TheSportsDB + FLUX Engine\n"
@@ -267,7 +284,7 @@ def today_top_3_message():
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v2.0 is running!"
+    return "FLUX AI Sports PRO v2.1 is running!"
 
 
 @app.route("/health")
