@@ -34,26 +34,10 @@ def analyze_match_v2(team1, team2):
     }
 
 
-def format_top_3(best_pick):
-    top_3 = best_pick.get("top_3", [])
-
-    if not top_3:
-        return f"🥇 {best_pick['pick']} — {best_pick['value']}%"
-
-    medals = ["🥇", "🥈", "🥉"]
-    lines = []
-
-    for index, item in enumerate(top_3[:3]):
-        name, value = item
-        lines.append(f"{medals[index]} {name} — {value}%")
-
-    return "\n".join(lines)
-
-
 def strength_icon(value):
-    if value >= 75:
+    if value >= 80:
         return "🟢"
-    if value >= 60:
+    if value >= 65:
         return "🟡"
     return "🔴"
 
@@ -61,6 +45,22 @@ def strength_icon(value):
 def confidence_stars(confidence):
     filled = max(1, min(10, int(confidence)))
     return "★" * filled + "☆" * (10 - filled)
+
+
+def format_top_3(best_pick):
+    top_3 = best_pick.get("top_3", [])
+
+    if not top_3:
+        return f"🥇 {best_pick['pick']} — {best_pick['value']}% {strength_icon(best_pick['value'])}"
+
+    medals = ["🥇", "🥈", "🥉"]
+    lines = []
+
+    for index, item in enumerate(top_3[:3]):
+        name, value = item
+        lines.append(f"{medals[index]} {name} — {value}% {strength_icon(value)}")
+
+    return "\n".join(lines)
 
 
 def format_analysis(result):
@@ -71,18 +71,17 @@ def format_analysis(result):
     totals = result["totals"]
     score = result.get("predicted_score", {}).get("score", "—")
     top_3 = result["best_pick"].get("top_3", [])
-
-    top_lines = []
-    medals = ["🥇", "🥈", "🥉"]
-
-    for index, item in enumerate(top_3[:3]):
-        name, value = item
-        top_lines.append(f"{medals[index]} {name} — {value}% {strength_icon(value)}")
-
-    top_3_text = "\n".join(top_lines)
+    top_3_text = format_top_3(result["best_pick"])
 
     confidence = result["confidence"]
     stars = confidence_stars(confidence)
+
+    if top_3:
+        main_pick = top_3[0][0]
+        main_value = top_3[0][1]
+    else:
+        main_pick = result["best_pick"]["pick"]
+        main_value = result["best_pick"]["value"]
 
     return f"""
 🏆 FLUX AI PRO
@@ -146,57 +145,22 @@ X — {probabilities["draw"]}%
 📊 Качество данных
 {result["data_quality"]}/100
 
-Источник:
-{result["source"]}
+━━━━━━━━━━━━━━━━━━
 
-Важно:
-Прогноз не является гарантией результата.
-"""
-    team1 = result["team1"]
-    team2 = result["team2"]
-    probabilities = result["probabilities"]
-    totals = result["totals"]
-    score = result.get("predicted_score", {}).get("score", "—")
-    top_3_text = format_top_3(result["best_pick"])
+🧠 Вердикт FLUX AI
 
-    return f"""
-⚽ FLUX AI PRO
+🏆 Основной прогноз:
+{main_pick}
 
-🏆 Матч:
-{team1} — {team2}
+🎯 Вероятность:
+{main_value}%
 
-📊 FLUX Rating:
-{team1}: {result["team1_rating"]["rating"]}/100
-{team2}: {result["team2_rating"]["rating"]}/100
+💡 Если выбирать только одну ставку,
+FLUX AI рекомендует:
 
-🎯 Вероятности:
-П1 — {probabilities["p1"]}%
-X — {probabilities["draw"]}%
-П2 — {probabilities["p2"]}%
+👉 {main_pick}
 
-🏆 ТОП-3 рекомендации:
-{top_3_text}
-
-⚽ Голы:
-ТБ 1.5 — {totals.get("over_1_5", "—")}%
-ТБ 2.5 — {totals.get("over_2_5", "—")}%
-ТБ 3.5 — {totals.get("over_3_5", "—")}%
-
-🥅 Обе забьют:
-Да — {totals["btts_yes"]}%
-Нет — {totals["btts_no"]}%
-
-🔮 Возможный счет:
-{score}
-
-📡 Качество данных:
-{result["data_quality"]}/100
-
-⚠️ Риск:
-{result["risk"]}
-
-🎯 Уверенность:
-{result["confidence"]}/10
+━━━━━━━━━━━━━━━━━━
 
 Источник:
 {result["source"]}
