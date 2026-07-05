@@ -67,8 +67,8 @@ def build_ai_comment(result, main_pick, main_value):
     team1 = result["team1"]
     team2 = result["team2"]
 
-    r1 = result["team1_rating"]["rating"]
-    r2 = result["team2_rating"]["rating"]
+    rating1 = result["team1_rating"]["rating"]
+    rating2 = result["team2_rating"]["rating"]
 
     form1 = result["team1_rating"]["form"]
     form2 = result["team2_rating"]["form"]
@@ -79,39 +79,104 @@ def build_ai_comment(result, main_pick, main_value):
     defense1 = result["team1_rating"]["defense"]
     defense2 = result["team2_rating"]["defense"]
 
-    if r1 > r2:
-        stronger = team1
-    elif r2 > r1:
-        stronger = team2
-    else:
-        stronger = "обе команды"
+    probs = result["probabilities"]
 
-    comment = (
-        "FLUX AI сравнил форму, атаку, защиту и вероятностную модель.\n\n"
+    # фаворит
+    if probs["p1"] > probs["p2"]:
+        favorite = team1
+    elif probs["p2"] > probs["p1"]:
+        favorite = team2
+    else:
+        favorite = "ни одна из команд"
+
+    lines = []
+
+    lines.append("🧠 FLUX AI Coach")
+    lines.append("")
+    lines.append(
+        f"После анализа более 30 игровых факторов модель считает фаворитом матча: {favorite}."
+    )
+    lines.append("")
+
+    # рейтинг
+    if abs(rating1 - rating2) >= 10:
+        better = team1 if rating1 > rating2 else team2
+        lines.append(
+            f"⭐ Общий рейтинг выше у {better}, что заметно влияет на вероятность исхода."
+        )
+    else:
+        lines.append(
+            "⭐ По общему рейтингу команды находятся примерно на одном уровне."
+        )
+
+    # форма
+    if abs(form1 - form2) >= 12:
+        better = team1 if form1 > form2 else team2
+        lines.append(
+            f"📈 Последняя форма значительно лучше у {better}."
+        )
+    else:
+        lines.append(
+            "📈 По текущей форме существенного преимущества нет."
+        )
+
+    # атака
+    if attack1 > attack2 + 10:
+        lines.append(
+            f"⚔️ Атака {team1} выглядит опаснее средней."
+        )
+    elif attack2 > attack1 + 10:
+        lines.append(
+            f"⚔️ Атака {team2} выглядит опаснее средней."
+        )
+
+    # защита
+    if defense1 > defense2 + 10:
+        lines.append(
+            f"🛡 Защита {team1} выглядит надежнее."
+        )
+    elif defense2 > defense1 + 10:
+        lines.append(
+            f"🛡 Защита {team2} выглядит надежнее."
+        )
+
+    # тоталы
+    over25 = result["totals"].get("over_2_5", 0)
+
+    if over25 >= 70:
+        lines.append(
+            "⚽ Модель ожидает достаточно результативную игру."
+        )
+    elif over25 <= 40:
+        lines.append(
+            "⚽ Вероятнее осторожный матч с небольшим количеством голов."
+        )
+
+    # уверенность
+    if main_value >= 80:
+        level = "очень высокая"
+    elif main_value >= 70:
+        level = "высокая"
+    elif main_value >= 60:
+        level = "средняя"
+    else:
+        level = "умеренная"
+
+    lines.append("")
+    lines.append(
+        f"🎯 Главная рекомендация модели: {main_pick}."
     )
 
-    if abs(r1 - r2) >= 12:
-        comment += f"• По общему рейтингу преимущество имеет {stronger}.\n"
-    else:
-        comment += "• По общему рейтингу матч выглядит достаточно равным.\n"
-
-    if abs(form1 - form2) >= 15:
-        better_form = team1 if form1 > form2 else team2
-        comment += f"• Лучшую текущую форму показывает {better_form}.\n"
-
-    if attack1 >= 75 or attack2 >= 75:
-        comment += "• Атакующий потенциал матча выше среднего.\n"
-
-    if defense1 >= 75 and defense2 >= 75:
-        comment += "• Обе команды имеют достаточно сильную защиту.\n"
-    elif defense1 < 55 or defense2 < 55:
-        comment += "• В обороне одной из команд есть заметные риски.\n"
-
-    comment += (
-        f"\nГлавный выбор модели — {main_pick} с вероятностью {main_value}%."
+    lines.append(
+        f"Вероятность оценивается как {level} ({main_value}%)."
     )
 
-    return comment
+    lines.append("")
+    lines.append(
+        "💡 FLUX AI рекомендует рассматривать этот прогноз как наиболее сильный вариант для данного матча."
+    )
+
+    return "\n".join(lines)
 
 
 def format_analysis(result):
