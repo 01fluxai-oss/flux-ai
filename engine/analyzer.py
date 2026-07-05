@@ -25,6 +25,8 @@ def analyze_match_v2(team1, team2):
         "team2_rating": v3["team2_rating"],
         "probabilities": v3["probabilities"],
         "totals": v3["totals"],
+        "double_chance": v3.get("double_chance", {}),
+        "predicted_score": v3.get("predicted_score", {}),
         "best_pick": v3["best_pick"],
         "risk": v3["risk"],
         "confidence": v3["confidence"],
@@ -32,50 +34,62 @@ def analyze_match_v2(team1, team2):
     }
 
 
+def format_top_3(best_pick):
+    top_3 = best_pick.get("top_3", [])
+
+    if not top_3:
+        return f"🥇 {best_pick['pick']} — {best_pick['value']}%"
+
+    medals = ["🥇", "🥈", "🥉"]
+    lines = []
+
+    for index, item in enumerate(top_3[:3]):
+        name, value = item
+        lines.append(f"{medals[index]} {name} — {value}%")
+
+    return "\n".join(lines)
+
+
 def format_analysis(result):
     team1 = result["team1"]
     team2 = result["team2"]
+    probabilities = result["probabilities"]
+    totals = result["totals"]
+    score = result.get("predicted_score", {}).get("score", "—")
+    top_3_text = format_top_3(result["best_pick"])
 
     return f"""
-⚽ FLUX AI Sports Analysis
+⚽ FLUX AI PRO
 
-Матч:
+🏆 Матч:
 {team1} — {team2}
 
 📊 FLUX Rating:
 {team1}: {result["team1_rating"]["rating"]}/100
 {team2}: {result["team2_rating"]["rating"]}/100
 
-⚔️ Attack:
-{team1}: {result["team1_rating"]["attack"]}/100
-{team2}: {result["team2_rating"]["attack"]}/100
+🎯 Вероятности:
+П1 — {probabilities["p1"]}%
+X — {probabilities["draw"]}%
+П2 — {probabilities["p2"]}%
 
-🛡 Defense:
-{team1}: {result["team1_rating"]["defense"]}/100
-{team2}: {result["team2_rating"]["defense"]}/100
+🏆 ТОП-3 рекомендации:
+{top_3_text}
 
-📈 Form:
-{team1}: {result["team1_rating"]["form"]}/100
-{team2}: {result["team2_rating"]["form"]}/100
-
-📡 Data Quality:
-{result["data_quality"]}/100
-
-🎯 Вероятности FLUX:
-П1 — {result["probabilities"]["p1"]}%
-X — {result["probabilities"]["draw"]}%
-П2 — {result["probabilities"]["p2"]}%
-
-⚽ Тотал 2.5:
-Больше — {result["totals"]["over_2_5"]}%
-Меньше — {result["totals"]["under_2_5"]}%
+⚽ Голы:
+ТБ 1.5 — {totals.get("over_1_5", "—")}%
+ТБ 2.5 — {totals.get("over_2_5", "—")}%
+ТБ 3.5 — {totals.get("over_3_5", "—")}%
 
 🥅 Обе забьют:
-Да — {result["totals"]["btts_yes"]}%
-Нет — {result["totals"]["btts_no"]}%
+Да — {totals["btts_yes"]}%
+Нет — {totals["btts_no"]}%
 
-🔥 Лучший вариант:
-{result["best_pick"]["pick"]} — {result["best_pick"]["value"]}%
+🔮 Возможный счет:
+{score}
+
+📡 Качество данных:
+{result["data_quality"]}/100
 
 ⚠️ Риск:
 {result["risk"]}
@@ -83,11 +97,11 @@ X — {result["probabilities"]["draw"]}%
 🎯 Уверенность:
 {result["confidence"]}/10
 
-Источник данных:
+Источник:
 {result["source"]}
 
-Вывод:
-FLUX AI v3 оценивает матч через рейтинг формы, атаки, защиты, качество данных и вероятностную модель. Прогноз не является гарантией результата.
+Важно:
+Прогноз не является гарантией результата.
 """
 
 
