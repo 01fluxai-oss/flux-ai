@@ -3,11 +3,33 @@ from engine.analyzer import analyze_match_v2
 
 TODAY_MATCHES = [
     ("Liverpool", "Arsenal"),
+    ("Real Madrid", "Paris Saint-Germain"),
+    ("Barcelona", "Bayern Munich"),
+    ("Manchester City", "Real Madrid"),
     ("Inter", "Milan"),
-    ("Barcelona", "Bayern"),
-    ("Man City", "Real Madrid"),
-    ("PSG", "Bayern"),
 ]
+
+
+BLOCKED_WORDS = [
+    "Youth",
+    "U19",
+    "U21",
+    "U23",
+    "Women",
+    "FA",
+    "Reserves",
+]
+
+
+def is_valid_match(result):
+    team1 = result.get("team1", "")
+    team2 = result.get("team2", "")
+
+    for word in BLOCKED_WORDS:
+        if word.lower() in team1.lower() or word.lower() in team2.lower():
+            return False
+
+    return True
 
 
 def get_pick_score(result):
@@ -47,7 +69,10 @@ def today_top_3():
     for team1, team2 in TODAY_MATCHES:
         try:
             result = analyze_match_v2(team1, team2)
-            results.append(result)
+
+            if is_valid_match(result):
+                results.append(result)
+
         except Exception as e:
             print("TODAY_ANALYSIS_ERROR:", team1, team2, e, flush=True)
 
@@ -55,7 +80,7 @@ def today_top_3():
         return (
             "⚠️ Сегодня не удалось получить прогнозы.\n\n"
             "Попробуй отправить матч вручную:\n"
-            "Real Madrid — PSG"
+            "Liverpool — Arsenal"
         )
 
     results = sorted(results, key=get_pick_score, reverse=True)[:3]
