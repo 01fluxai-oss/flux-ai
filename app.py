@@ -251,7 +251,18 @@ def pro_message():
         "$9.99 / месяц\n\n"
         "🚀 Скоро будет доступно."
     )
-
+def channel_message():
+    return (
+        "🏆 FLUX AI DAILY\n\n"
+        "Официальный канал FLUX AI.\n\n"
+        "Там публикуются:\n"
+        "⚽ ТОП-3 прогнозов дня\n"
+        "📊 AI-анализ матчей\n"
+        "🔥 Лучшие ставки\n"
+        "💎 Новости FLUX PRO\n\n"
+        "📢 Подписаться:\n"
+        f"{CHANNEL_USERNAME}"
+    )
 
 def status_message():
     return (
