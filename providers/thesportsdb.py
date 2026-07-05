@@ -60,6 +60,25 @@ def normalize_key(name):
 
 def search_team(team_name):
     key = normalize_key(team_name)
+
+    if key in TEAM_MAP:
+        return TEAM_MAP[key]
+
+    try:
+        data = api_get("searchteams.php", {"t": team_name})
+        teams = data.get("teams") or []
+
+        if teams:
+            team = teams[0]
+            return {
+                "id": team.get("idTeam"),
+                "name": team.get("strTeam"),
+            }
+    except Exception as e:
+        print("TEAM_SEARCH_ERROR:", e, flush=True)
+
+    raise Exception(f"Команда не найдена: {team_name}")
+    key = normalize_key(team_name)
     if key in TEAM_MAP:
         return TEAM_MAP[key]
     raise Exception(f"Команда не найдена: {team_name}")
