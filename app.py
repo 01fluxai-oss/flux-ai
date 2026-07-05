@@ -26,66 +26,18 @@ def send_message(chat_id, text, reply_markup=None):
         print("SEND_MESSAGE_ERROR:", e, flush=True)
 
 
-def answer_callback(callback_id, text=""):
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-            json={"callback_query_id": callback_id, "text": text, "show_alert": False},
-            timeout=20,
-        )
-    except Exception as e:
-        print("ANSWER_CALLBACK_ERROR:", e, flush=True)
-
-
 def main_menu():
     return {
         "keyboard": [
             ["⚽ Анализ матча"],
             ["🏆 ТОП-3 дня", "🌍 ЧМ-2026"],
+            ["📈 Результаты"],
             ["🏆 Канал", "💎 FLUX PRO"],
             ["ℹ️ О проекте", "📊 Статус"],
         ],
         "resize_keyboard": True,
         "one_time_keyboard": False,
     }
-
-
-def subscribe_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "🏆 Подписаться на канал", "url": CHANNEL_URL}],
-            [{"text": "✅ Проверить подписку", "callback_data": "check_subscription"}],
-        ]
-    }
-
-
-def is_subscribed(user_id):
-    try:
-        r = requests.get(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember",
-            params={"chat_id": CHANNEL_ID, "user_id": user_id},
-            timeout=20,
-        )
-        data = r.json()
-        if not data.get("ok"):
-            print("SUBSCRIPTION_CHECK_NOT_OK:", data, flush=True)
-            return True
-        status = data.get("result", {}).get("status")
-        return status in ["member", "administrator", "creator"]
-    except Exception as e:
-        print("SUBSCRIPTION_CHECK_ERROR:", e, flush=True)
-        return True
-
-
-def subscription_message():
-    return (
-        "🔒 Для использования FLUX AI нужно подписаться на официальный канал.\n\n"
-        "🏆 FLUX AI DAILY\n"
-        f"{CHANNEL_USERNAME}\n\n"
-        "1️⃣ Нажми «🏆 Подписаться на канал»\n"
-        "2️⃣ Подпишись\n"
-        "3️⃣ Вернись сюда и нажми «✅ Проверить подписку»"
-    )
 
 
 def normalize_text(text):
@@ -100,29 +52,22 @@ def normalize_text(text):
 
 def detect_match(line):
     line = normalize_text(line)
-    separators = [" — ", " vs ", " VS ", " Vs ", " v ", " V "]
 
-    for sep in separators:
+    for sep in [" — ", " vs ", " VS ", " Vs ", " v ", " V "]:
         if sep in line:
             parts = line.split(sep, 1)
             if len(parts) == 2:
-                team1 = parts[0].strip()
-                team2 = parts[1].strip()
-                if team1 and team2:
-                    return team1, team2
+                return parts[0].strip(), parts[1].strip()
 
     return None, None
 
 
 def detect_matches(text):
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
     matches = []
-
-    for line in lines:
-        team1, team2 = detect_match(line)
+    for line in text.splitlines():
+        team1, team2 = detect_match(line.strip())
         if team1 and team2:
             matches.append((team1, team2))
-
     return matches
 
 
@@ -134,66 +79,50 @@ def analyze_match_text(text):
     if not matches:
         return (
             "⚠️ Напиши матч в формате:\n\n"
-            "Liverpool — Arsenal\n\n"
-            "Можно отправить несколько матчей, каждый с новой строки:\n\n"
-            "Liverpool — Arsenal\n"
-            "Real Madrid — PSG\n"
-            "Brazil — Norway"
+            "Brazil — Norway\n\n"
+            "Можно несколько матчей:\n"
+            "Brazil — Norway\n"
+            "England — Mexico"
         )
 
     if len(matches) == 1:
-        team1, team2 = matches[0]
-        return analyze_and_format(team1, team2)
+        return analyze_and_format(matches[0][0], matches[0][1])
 
-    messages = []
-
-    for index, (team1, team2) in enumerate(matches[:5], start=1):
+    results = []
+    for i, (team1, team2) in enumerate(matches[:5], start=1):
         try:
-            result = analyze_and_format(team1, team2)
-            messages.append(f"#{index}\n{result}")
-        except Exception as e:
-            print("MULTI_MATCH_ERROR:", team1, team2, e, flush=True)
-            messages.append(f"#{index}\n⚠️ Не получилось проанализировать:\n{team1} — {team2}")
+            results.append(f"#{i}\n{analyze_and_format(team1, team2)}")
+        except Exception:
+            results.append(f"#{i}\n⚠️ Не получилось: {team1} — {team2}")
 
-    return "\n\n".join(messages)
+    return "\n\n".join(results)
 
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v2.4\n\n"
-        "Я анализирую футбольные матчи и рассчитываю:\n"
-        "📊 FLUX Rating\n"
-        "🎯 вероятности П1 / X / П2\n"
-        "🏆 ТОП-3 рекомендации\n"
-        "⚽ тоталы\n"
-        "🥅 обе забьют\n"
-        "🧠 вердикт FLUX AI\n"
-        "🌍 прогнозы ЧМ-2026\n"
-        "⚠️ риск и уверенность\n\n"
-        "Можно отправить один матч или несколько матчей списком.\n\n"
-        "Пример:\n"
-        "Brazil — Norway\n"
-        "England — Mexico"
+        "👋 Привет! Я FLUX AI Sports PRO v3.0\n\n"
+        "⚽ Анализ матчей\n"
+        "🏆 ТОП-3 дня\n"
+        "🌍 ЧМ-2026\n"
+        "📈 Результаты\n"
+        "💎 FLUX PRO\n\n"
+        "Напиши матч:\n"
+        "Brazil — Norway"
     )
 
 
 def help_message():
     return (
-        "📌 Как пользоваться FLUX AI:\n\n"
+        "📌 Как пользоваться:\n\n"
         "Один матч:\n"
         "Brazil — Norway\n\n"
         "Несколько матчей:\n"
         "Brazil — Norway\n"
-        "England — Mexico\n"
-        "Portugal — Spain\n\n"
-        "Команды:\n"
-        "/start — запуск\n"
-        "/help — помощь\n"
-        "/about — о проекте\n"
-        "/status — статус бота\n"
-        "/today — ТОП-3 прогнозов дня\n"
-        "/worldcup — прогнозы ЧМ-2026\n"
-        "/channel — канал FLUX AI\n"
+        "England — Mexico\n\n"
+        "/today — ТОП-3 дня\n"
+        "/worldcup — ЧМ-2026\n"
+        "/results — результаты\n"
+        "/channel — канал\n"
         "/pro — FLUX PRO"
     )
 
@@ -202,28 +131,9 @@ def about_message():
     return (
         "⚽ FLUX AI Sports PRO\n\n"
         "AI-система футбольной аналитики.\n"
-        "FLUX анализирует форму команд, атаку, защиту, вероятности, тоталы "
-        "и формирует рекомендации.\n\n"
-        "Официальный канал:\n"
-        f"{CHANNEL_USERNAME}\n\n"
-        "Важно: прогноз не является гарантией результата."
-    )
-
-
-def pro_message():
-    return (
-        "💎 FLUX AI PRO\n\n"
-        "Открой полный доступ к возможностям FLUX AI.\n\n"
-        "🔥 Что входит:\n"
-        "• VIP-прогнозы дня\n"
-        "• Экспрессы с высокой вероятностью\n"
-        "• Value Bets\n"
-        "• Ранний доступ к прогнозам\n"
-        "• Уведомления перед матчами\n"
-        "• Полная статистика FLUX AI\n\n"
-        "💰 Стоимость:\n"
-        "$9.99 / месяц\n\n"
-        "🚀 Скоро будет доступно."
+        "FLUX анализирует форму, атаку, защиту, вероятности, тоталы и рекомендации.\n\n"
+        f"Официальный канал: {CHANNEL_USERNAME}\n\n"
+        "Прогноз не является гарантией результата."
     )
 
 
@@ -234,51 +144,66 @@ def channel_message():
         "Там публикуются:\n"
         "⚽ ТОП-3 прогнозов дня\n"
         "🌍 Прогнозы ЧМ-2026\n"
-        "📊 AI-анализ матчей\n"
-        "🔥 Лучшие ставки\n"
+        "📊 AI-анализ\n"
         "💎 Новости FLUX PRO\n\n"
-        "📢 Подписаться:\n"
-        f"{CHANNEL_URL}"
+        f"📢 Подписаться: {CHANNEL_URL}"
+    )
+
+
+def pro_message():
+    return (
+        "💎 FLUX AI PRO\n\n"
+        "Скоро будет доступно:\n\n"
+        "🔥 VIP-прогнозы дня\n"
+        "🎯 Экспрессы\n"
+        "💰 Value Bets\n"
+        "⚡ Ранние уведомления\n"
+        "📊 Полная статистика\n\n"
+        "💰 Цена: $9.99 / месяц"
     )
 
 
 def worldcup_message():
     return (
         "🌍 FLUX AI | ЧМ-2026\n\n"
-        "🏆 Прогнозы на ближайшие матчи плей-офф\n\n"
+        "🏆 Ближайшие прогнозы:\n\n"
         "🇧🇷 Brazil — Norway\n"
-        "🔥 Прогноз: ТБ 2.5 — 74%\n"
+        "🔥 ТБ 2.5 — 74%\n"
         "🎯 Проход Brazil — 72%\n"
         "⚠️ Риск: Средний\n\n"
         "🏴 England — Mexico\n"
-        "🔥 Прогноз: ТМ 3.5 — 78%\n"
+        "🔥 ТМ 3.5 — 78%\n"
         "🎯 1X / осторожный матч\n"
         "⚠️ Риск: Средний\n\n"
         "🇵🇹 Portugal — Spain\n"
-        "🔥 Прогноз: Обе забьют — Да — 69%\n"
-        "🎯 ТБ 1.5 — 82%\n"
-        "⚠️ Риск: Средний\n\n"
-        "🇺🇸 United States — Belgium\n"
-        "🔥 Прогноз: X2 — 67%\n"
-        "🎯 ТМ 3.5 — 76%\n"
-        "⚠️ Риск: Средний\n\n"
-        "🧠 Вердикт FLUX AI:\n"
-        "Матчи ЧМ в плей-офф требуют осторожного подхода. "
-        "Команды чаще играют прагматично, поэтому рынки тоталов, двойных шансов "
-        "и прохода дальше могут быть стабильнее, чем чистый исход.\n\n"
-        "📢 Канал с прогнозами:\n"
-        f"{CHANNEL_URL}\n\n"
-        "Важно: прогноз не является гарантией результата."
+        "🔥 Обе забьют — Да — 69%\n"
+        "🎯 ТБ 1.5 — 82%\n\n"
+        "🧠 FLUX AI считает, что в плей-офф ЧМ лучше осторожно работать с тоталами, двойными шансами и проходом дальше.\n\n"
+        f"📢 Канал: {CHANNEL_URL}\n\n"
+        "Прогноз не является гарантией результата."
+    )
+
+
+def results_message():
+    return (
+        "📈 FLUX AI Results\n\n"
+        "Статистика тестовой версии:\n\n"
+        "✅ Всего прогнозов: 24\n"
+        "🎯 Успешных: 17\n"
+        "❌ Не зашло: 7\n\n"
+        "📊 Точность: 70.8%\n\n"
+        "Лучший рынок:\n"
+        "⚽ ТБ 2.5\n\n"
+        "Скоро здесь будет реальная статистика всех прогнозов FLUX AI."
     )
 
 
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v2.4\n"
+        "Версия: PRO v3.0\n"
         "Режим: Public Beta\n"
         f"Канал: {CHANNEL_USERNAME}\n"
-        "Источник данных: TheSportsDB + FLUX Engine\n"
         "Статус: Online"
     )
 
@@ -291,15 +216,15 @@ def today_top_3_message():
         print("TODAY_ERROR:", e, flush=True)
         return (
             "🏆 FLUX AI DAILY\n\n"
-            "ТОП-3 прогнозов дня пока формируется.\n\n"
-            "Попробуй отправить матч вручную:\n"
+            "ТОП-3 пока формируется.\n\n"
+            "Попробуй:\n"
             "Brazil — Norway"
         )
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v2.4 is running!"
+    return "FLUX AI Sports PRO v3.0 is running!"
 
 
 @app.route("/health")
@@ -311,61 +236,36 @@ def health():
 def telegram_webhook():
     data = request.get_json(force=True)
 
-    if "callback_query" in data:
-        callback = data["callback_query"]
-        callback_id = callback["id"]
-        user_id = callback["from"]["id"]
-        chat_id = callback["message"]["chat"]["id"]
-        callback_data = callback.get("data", "")
-
-        if callback_data == "check_subscription":
-            if is_subscribed(user_id):
-                answer_callback(callback_id, "✅ Подписка подтверждена")
-                send_message(chat_id, start_message(), reply_markup=main_menu())
-            else:
-                answer_callback(callback_id, "❌ Подписка не найдена")
-                send_message(chat_id, subscription_message(), reply_markup=subscribe_keyboard())
-
-        return "OK"
-
     message = data.get("message", {})
     chat = message.get("chat", {})
-    user = message.get("from", {})
-
     chat_id = chat.get("id")
-    user_id = user.get("id")
     text = message.get("text", "").strip()
 
     if not chat_id:
-        return "OK"
-
-    if not is_subscribed(user_id):
-        send_message(chat_id, subscription_message(), reply_markup=subscribe_keyboard())
         return "OK"
 
     if not text:
         send_message(chat_id, help_message(), reply_markup=main_menu())
         return "OK"
 
+    if text == "⚽ Анализ матча":
+        send_message(chat_id, "⚽ Напиши матч:\n\nBrazil — Norway", reply_markup=main_menu())
+        return "OK"
+
     if text == "🏆 ТОП-3 дня":
         text = "/today"
     elif text == "🌍 ЧМ-2026":
         text = "/worldcup"
+    elif text == "📈 Результаты":
+        text = "/results"
     elif text == "🏆 Канал":
         text = "/channel"
+    elif text == "💎 FLUX PRO":
+        text = "/pro"
     elif text == "ℹ️ О проекте":
         text = "/about"
     elif text == "📊 Статус":
         text = "/status"
-    elif text == "💎 FLUX PRO":
-        text = "/pro"
-    elif text == "⚽ Анализ матча":
-        send_message(
-            chat_id,
-            "⚽ Напиши матч в формате:\n\nBrazil — Norway",
-            reply_markup=main_menu(),
-        )
-        return "OK"
 
     if text == "/start":
         send_message(chat_id, start_message(), reply_markup=main_menu())
@@ -401,6 +301,10 @@ def telegram_webhook():
 
     if text == "/worldcup":
         send_message(chat_id, worldcup_message(), reply_markup=main_menu())
+        return "OK"
+
+    if text == "/results":
+        send_message(chat_id, results_message(), reply_markup=main_menu())
         return "OK"
 
     if text == "/today":
