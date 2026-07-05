@@ -26,10 +26,11 @@ def send_message(chat_id, text, reply_markup=None):
 def main_menu():
     return {
         "keyboard": [
-            ["⚽ Анализ матча"],
-            ["🏆 ТОП-3 дня"],
-            ["ℹ️ О проекте", "📊 Статус"],
-        ],
+    ["⚽ Анализ матча"],
+    ["🏆 ТОП-3 дня"],
+    ["💎 FLUX PRO"],
+    ["ℹ️ О проекте", "📊 Статус"],
+]
         "resize_keyboard": True,
         "one_time_keyboard": False,
     }
