@@ -1,5 +1,6 @@
 import os
 import requests
+from payments.stripe import create_checkout_session
 from threading import Thread
 from flask import Flask, request
 from database.db import add_user, get_user, is_pro
@@ -293,8 +294,18 @@ def telegram_webhook():
         return "OK"
 
     if text == "/pro":
-        send_message(chat_id, pro_message(), reply_markup=main_menu())
-        return "OK"
+    url = create_checkout_session(user_id)
+
+    send_message(
+        chat_id,
+        "💎 FLUX AI PRO\n\n"
+        "Полный доступ ко всем возможностям FLUX AI.\n\n"
+        "💳 Цена: $9.99 / месяц\n\n"
+        f"Оформить подписку:\n{url}",
+        reply_markup=main_menu(),
+    )
+
+    return "OK"
 
     if text == "/channel":
         send_message(
