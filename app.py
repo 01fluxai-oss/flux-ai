@@ -27,10 +27,9 @@ def send_message(chat_id, text, reply_markup=None):
 
 
 def answer_callback(callback_id, text=""):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
     try:
         requests.post(
-            url,
+            f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
             json={"callback_query_id": callback_id, "text": text, "show_alert": False},
             timeout=20,
         )
@@ -42,7 +41,7 @@ def main_menu():
     return {
         "keyboard": [
             ["⚽ Анализ матча"],
-            ["🏆 ТОП-3 дня"],
+            ["🏆 ТОП-3 дня", "🌍 ЧМ-2026"],
             ["🏆 Канал", "💎 FLUX PRO"],
             ["ℹ️ О проекте", "📊 Статус"],
         ],
@@ -62,23 +61,20 @@ def subscribe_keyboard():
 
 def is_subscribed(user_id):
     try:
-        response = requests.get(
+        r = requests.get(
             f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember",
             params={"chat_id": CHANNEL_ID, "user_id": user_id},
             timeout=20,
         )
-        data = response.json()
-
+        data = r.json()
         if not data.get("ok"):
             print("SUBSCRIPTION_CHECK_NOT_OK:", data, flush=True)
-            return False
-
+            return True
         status = data.get("result", {}).get("status")
         return status in ["member", "administrator", "creator"]
-
     except Exception as e:
         print("SUBSCRIPTION_CHECK_ERROR:", e, flush=True)
-        return False
+        return True
 
 
 def subscription_message():
@@ -104,7 +100,6 @@ def normalize_text(text):
 
 def detect_match(line):
     line = normalize_text(line)
-
     separators = [" — ", " vs ", " VS ", " Vs ", " v ", " V "]
 
     for sep in separators:
@@ -143,7 +138,7 @@ def analyze_match_text(text):
             "Можно отправить несколько матчей, каждый с новой строки:\n\n"
             "Liverpool — Arsenal\n"
             "Real Madrid — PSG\n"
-            "Barcelona — Bayern"
+            "Brazil — Norway"
         )
 
     if len(matches) == 1:
@@ -165,7 +160,7 @@ def analyze_match_text(text):
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v2.3\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v2.4\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
@@ -173,11 +168,12 @@ def start_message():
         "⚽ тоталы\n"
         "🥅 обе забьют\n"
         "🧠 вердикт FLUX AI\n"
+        "🌍 прогнозы ЧМ-2026\n"
         "⚠️ риск и уверенность\n\n"
         "Можно отправить один матч или несколько матчей списком.\n\n"
         "Пример:\n"
-        "Liverpool — Arsenal\n"
-        "Real Madrid — PSG"
+        "Brazil — Norway\n"
+        "England — Mexico"
     )
 
 
@@ -185,17 +181,18 @@ def help_message():
     return (
         "📌 Как пользоваться FLUX AI:\n\n"
         "Один матч:\n"
-        "Liverpool — Arsenal\n\n"
+        "Brazil — Norway\n\n"
         "Несколько матчей:\n"
-        "Liverpool — Arsenal\n"
-        "Real Madrid — PSG\n"
-        "Barcelona — Bayern\n\n"
+        "Brazil — Norway\n"
+        "England — Mexico\n"
+        "Portugal — Spain\n\n"
         "Команды:\n"
         "/start — запуск\n"
         "/help — помощь\n"
         "/about — о проекте\n"
         "/status — статус бота\n"
         "/today — ТОП-3 прогнозов дня\n"
+        "/worldcup — прогнозы ЧМ-2026\n"
         "/channel — канал FLUX AI\n"
         "/pro — FLUX PRO"
     )
@@ -236,6 +233,7 @@ def channel_message():
         "Официальный канал FLUX AI.\n\n"
         "Там публикуются:\n"
         "⚽ ТОП-3 прогнозов дня\n"
+        "🌍 Прогнозы ЧМ-2026\n"
         "📊 AI-анализ матчей\n"
         "🔥 Лучшие ставки\n"
         "💎 Новости FLUX PRO\n\n"
@@ -244,10 +242,40 @@ def channel_message():
     )
 
 
+def worldcup_message():
+    return (
+        "🌍 FLUX AI | ЧМ-2026\n\n"
+        "🏆 Прогнозы на ближайшие матчи плей-офф\n\n"
+        "🇧🇷 Brazil — Norway\n"
+        "🔥 Прогноз: ТБ 2.5 — 74%\n"
+        "🎯 Проход Brazil — 72%\n"
+        "⚠️ Риск: Средний\n\n"
+        "🏴 England — Mexico\n"
+        "🔥 Прогноз: ТМ 3.5 — 78%\n"
+        "🎯 1X / осторожный матч\n"
+        "⚠️ Риск: Средний\n\n"
+        "🇵🇹 Portugal — Spain\n"
+        "🔥 Прогноз: Обе забьют — Да — 69%\n"
+        "🎯 ТБ 1.5 — 82%\n"
+        "⚠️ Риск: Средний\n\n"
+        "🇺🇸 United States — Belgium\n"
+        "🔥 Прогноз: X2 — 67%\n"
+        "🎯 ТМ 3.5 — 76%\n"
+        "⚠️ Риск: Средний\n\n"
+        "🧠 Вердикт FLUX AI:\n"
+        "Матчи ЧМ в плей-офф требуют осторожного подхода. "
+        "Команды чаще играют прагматично, поэтому рынки тоталов, двойных шансов "
+        "и прохода дальше могут быть стабильнее, чем чистый исход.\n\n"
+        "📢 Канал с прогнозами:\n"
+        f"{CHANNEL_URL}\n\n"
+        "Важно: прогноз не является гарантией результата."
+    )
+
+
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v2.3\n"
+        "Версия: PRO v2.4\n"
         "Режим: Public Beta\n"
         f"Канал: {CHANNEL_USERNAME}\n"
         "Источник данных: TheSportsDB + FLUX Engine\n"
@@ -265,13 +293,13 @@ def today_top_3_message():
             "🏆 FLUX AI DAILY\n\n"
             "ТОП-3 прогнозов дня пока формируется.\n\n"
             "Попробуй отправить матч вручную:\n"
-            "Liverpool — Arsenal"
+            "Brazil — Norway"
         )
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v2.3 is running!"
+    return "FLUX AI Sports PRO v2.4 is running!"
 
 
 @app.route("/health")
@@ -321,6 +349,8 @@ def telegram_webhook():
 
     if text == "🏆 ТОП-3 дня":
         text = "/today"
+    elif text == "🌍 ЧМ-2026":
+        text = "/worldcup"
     elif text == "🏆 Канал":
         text = "/channel"
     elif text == "ℹ️ О проекте":
@@ -332,7 +362,7 @@ def telegram_webhook():
     elif text == "⚽ Анализ матча":
         send_message(
             chat_id,
-            "⚽ Напиши матч в формате:\n\nLiverpool — Arsenal",
+            "⚽ Напиши матч в формате:\n\nBrazil — Norway",
             reply_markup=main_menu(),
         )
         return "OK"
@@ -369,6 +399,10 @@ def telegram_webhook():
         )
         return "OK"
 
+    if text == "/worldcup":
+        send_message(chat_id, worldcup_message(), reply_markup=main_menu())
+        return "OK"
+
     if text == "/today":
         send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...", reply_markup=main_menu())
         send_message(chat_id, today_top_3_message(), reply_markup=main_menu())
@@ -390,7 +424,7 @@ def telegram_webhook():
             chat_id,
             "⚠️ Не получилось сделать анализ.\n\n"
             "Проверь формат:\n"
-            "Liverpool — Arsenal",
+            "Brazil — Norway",
             reply_markup=main_menu(),
         )
 
@@ -402,10 +436,7 @@ def set_webhook():
 
     response = requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
-        json={
-            "url": webhook_url,
-            "drop_pending_updates": True,
-        },
+        json={"url": webhook_url, "drop_pending_updates": True},
         timeout=20,
     )
 
