@@ -307,6 +307,17 @@ def telegram_webhook():
 
     return "OK"
 
+    send_message(
+        chat_id,
+        "💎 FLUX AI PRO\n\n"
+        "Полный доступ ко всем возможностям FLUX AI.\n\n"
+        "💳 Цена: $9.99 / месяц\n\n"
+        f"Оформить подписку:\n{url}",
+        reply_markup=main_menu(),
+    )
+
+    return "OK"
+
     if text == "/channel":
         send_message(
             chat_id,
