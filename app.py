@@ -6,12 +6,15 @@ from flask import Flask, request
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
 
+CHANNEL_ID = "-1003654137478"
+CHANNEL_URL = "https://t.me/FluxAIDaily"
+CHANNEL_USERNAME = "@FluxAIDaily"
+
 app = Flask(__name__)
 
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -21,6 +24,19 @@ def send_message(chat_id, text, reply_markup=None):
         payload["reply_markup"] = reply_markup
 
     requests.post(url, json=payload, timeout=20)
+
+
+def answer_callback(callback_id, text=""):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
+    requests.post(
+        url,
+        json={
+            "callback_query_id": callback_id,
+            "text": text,
+            "show_alert": False,
+        },
+        timeout=20,
+    )
 
 
 def main_menu():
@@ -34,6 +50,51 @@ def main_menu():
         "resize_keyboard": True,
         "one_time_keyboard": False,
     }
+
+
+def subscribe_keyboard():
+    return {
+        "inline_keyboard": [
+            [{"text": "📢 Подписаться на канал", "url": CHANNEL_URL}],
+            [{"text": "✅ Проверить подписку", "callback_data": "check_subscription"}],
+        ]
+    }
+
+
+def is_subscribed(user_id):
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
+        response = requests.get(
+            url,
+            params={
+                "chat_id": CHANNEL_ID,
+                "user_id": user_id,
+            },
+            timeout=20,
+        )
+        data = response.json()
+
+        if not data.get("ok"):
+            print("SUBSCRIPTION_CHECK_NOT_OK:", data, flush=True)
+            return False
+
+        status = data.get("result", {}).get("status")
+        return status in ["member", "administrator", "creator"]
+
+    except Exception as e:
+        print("SUBSCRIPTION_CHECK_ERROR:", e, flush=True)
+        return False
+
+
+def subscription_message():
+    return (
+        "🔒 Для использования FLUX AI нужно подписаться на официальный канал.\n\n"
+        "🏆 FLUX AI DAILY\n"
+        f"{CHANNEL_USERNAME}\n\n"
+        "1️⃣ Нажми «📢 Подписаться на канал»\n"
+        "2️⃣ Подпишись\n"
+        "3️⃣ Вернись сюда и нажми «✅ Проверить подписку»"
+    )
 
 
 def detect_match(text):
@@ -85,11 +146,6 @@ def analyze_match_text(text):
     matches = detect_matches(text)
 
     if not matches:
-        team1, team2 = detect_match(text)
-        if team1 and team2:
-            matches = [(team1, team2)]
-
-    if not matches:
         return (
             "⚠️ Напиши матч в формате:\n\n"
             "Liverpool — Arsenal\n\n"
@@ -120,7 +176,7 @@ def analyze_match_text(text):
 
 def start_message():
     return (
-        "👋 Привет! Я FLUX AI Sports PRO v1.4\n\n"
+        "👋 Привет! Я FLUX AI Sports PRO v2.0\n\n"
         "Я анализирую футбольные матчи и рассчитываю:\n"
         "📊 FLUX Rating\n"
         "🎯 вероятности П1 / X / П2\n"
@@ -159,7 +215,10 @@ def about_message():
     return (
         "⚽ FLUX AI Sports PRO\n\n"
         "AI-система футбольной аналитики.\n"
-        "FLUX анализирует форму команд, атаку, защиту, вероятности, тоталы и формирует рекомендации.\n\n"
+        "FLUX анализирует форму команд, атаку, защиту, вероятности, тоталы "
+        "и формирует рекомендации.\n\n"
+        "Официальный канал:\n"
+        f"{CHANNEL_USERNAME}\n\n"
         "Важно: прогноз не является гарантией результата."
     )
 
@@ -177,27 +236,18 @@ def pro_message():
         "• Полная статистика FLUX AI\n\n"
         "💰 Стоимость:\n"
         "$9.99 / месяц\n\n"
-        "🚀 Скоро будет доступно.\n\n"
-        "Пока FLUX PRO работает в режиме подготовки."
+        "🚀 Скоро будет доступно."
     )
 
 
 def status_message():
     return (
         "✅ FLUX AI Sports работает.\n\n"
-        "Версия: PRO v1.4\n"
+        "Версия: PRO v2.0\n"
         "Режим: Public Beta\n"
+        f"Канал: {CHANNEL_USERNAME}\n"
         "Источник данных: TheSportsDB + FLUX Engine\n"
         "Статус: Online"
-    )
-
-
-def today_message():
-    return (
-        "🏆 FLUX AI DAILY\n\n"
-        "ТОП-3 прогнозов дня пока формируется.\n\n"
-        "Попробуй отправить матч вручную:\n"
-        "Liverpool — Arsenal"
     )
 
 
@@ -207,12 +257,17 @@ def today_top_3_message():
         return today_top_3()
     except Exception as e:
         print("TODAY_ERROR:", e, flush=True)
-        return today_message()
+        return (
+            "🏆 FLUX AI DAILY\n\n"
+            "ТОП-3 прогнозов дня пока формируется.\n\n"
+            "Попробуй отправить матч вручную:\n"
+            "Liverpool — Arsenal"
+        )
 
 
 @app.route("/")
 def home():
-    return "FLUX AI Sports PRO v1.4 is running!"
+    return "FLUX AI Sports PRO v2.0 is running!"
 
 
 @app.route("/health")
@@ -224,12 +279,36 @@ def health():
 def telegram_webhook():
     data = request.get_json(force=True)
 
+    if "callback_query" in data:
+        callback = data["callback_query"]
+        callback_id = callback["id"]
+        user_id = callback["from"]["id"]
+        chat_id = callback["message"]["chat"]["id"]
+        callback_data = callback.get("data", "")
+
+        if callback_data == "check_subscription":
+            if is_subscribed(user_id):
+                answer_callback(callback_id, "✅ Подписка подтверждена")
+                send_message(chat_id, start_message(), reply_markup=main_menu())
+            else:
+                answer_callback(callback_id, "❌ Подписка не найдена")
+                send_message(chat_id, subscription_message(), reply_markup=subscribe_keyboard())
+
+        return "OK"
+
     message = data.get("message", {})
     chat = message.get("chat", {})
+    user = message.get("from", {})
+
     chat_id = chat.get("id")
+    user_id = user.get("id")
     text = message.get("text", "").strip()
 
     if not chat_id:
+        return "OK"
+
+    if not is_subscribed(user_id):
+        send_message(chat_id, subscription_message(), reply_markup=subscribe_keyboard())
         return "OK"
 
     if not text:
