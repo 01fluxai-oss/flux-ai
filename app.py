@@ -285,7 +285,6 @@ def telegram_webhook():
     if text == "/start":
         send_message(chat_id, start_message(), reply_markup=main_menu())
         return "OK"
-
     if text == "/help":
         send_message(chat_id, help_message(), reply_markup=main_menu())
         return "OK"
@@ -298,9 +297,8 @@ def telegram_webhook():
         send_message(chat_id, status_message(), reply_markup=main_menu())
         return "OK"
 
-     if text == "/pro":
+    if text == "/pro":
         url = create_checkout_session(user_id)
-
         send_message(
             chat_id,
             "💎 FLUX AI PRO\n\n"
@@ -309,10 +307,9 @@ def telegram_webhook():
             f"Оформить подписку:\n{url}",
             reply_markup=main_menu(),
         )
-
         return "OK"
 
-     if text == "/profile":
+    if text == "/profile":
         send_message(chat_id, profile_message(user_id), reply_markup=main_menu())
         return "OK"
 
