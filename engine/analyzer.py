@@ -1,13 +1,87 @@
 from providers.thesportsdb import get_match_data
 from engine.v3_engine import analyze_v3
 
-
 CHANNEL_URL = "https://t.me/FluxAIDaily"
+
 
 def bar(value):
     value = max(0, min(100, int(value)))
     blocks = round(value / 10)
     return "█" * blocks + "░" * (10 - blocks)
+
+
+def strength_icon(value):
+    value = int(value)
+    if value >= 80:
+        return "🟢"
+    if value >= 65:
+        return "🟡"
+    return "🔴"
+
+
+def format_top_3(best_pick):
+    top_3 = best_pick.get("top_3", [])
+
+    if not top_3:
+        return f"🥇 {best_pick.get('pick', '—')} — {best_pick.get('value', '—')}%"
+
+    medals = ["🥇", "🥈", "🥉"]
+    lines = []
+
+    for index, item in enumerate(top_3[:3]):
+        name, value = item
+        lines.append(f"{medals[index]} {name} — {value}% {strength_icon(value)}")
+
+    return "\n".join(lines)
+
+
+def build_ai_comment(result, main_pick, main_value):
+    team1 = result["team1"]
+    team2 = result["team2"]
+
+    rating1 = result["team1_rating"]["rating"]
+    rating2 = result["team2_rating"]["rating"]
+
+    attack1 = result["team1_rating"]["attack"]
+    attack2 = result["team2_rating"]["attack"]
+
+    defense1 = result["team1_rating"]["defense"]
+    defense2 = result["team2_rating"]["defense"]
+
+    totals = result["totals"]
+    over25 = totals.get("over_2_5", 0)
+
+    lines = []
+    lines.append("🧠 FLUX AI Coach")
+    lines.append("")
+
+    if rating1 > rating2:
+        lines.append(f"• {team1} выглядит сильнее по общему рейтингу.")
+    elif rating2 > rating1:
+        lines.append(f"• {team2} выглядит сильнее по общему рейтингу.")
+    else:
+        lines.append("• Команды выглядят близко по общему уровню.")
+
+    if attack1 + attack2 >= 110:
+        lines.append("• Атакующий потенциал матча высокий.")
+    else:
+        lines.append("• Атакующий потенциал матча умеренный.")
+
+    if defense1 > defense2 + 10:
+        lines.append(f"• Защита {team1} выглядит надежнее.")
+    elif defense2 > defense1 + 10:
+        lines.append(f"• Защита {team2} выглядит надежнее.")
+
+    if over25 >= 70:
+        lines.append("• Модель ожидает результативную игру.")
+    elif over25 <= 40:
+        lines.append("• Модель ожидает осторожный матч.")
+
+    lines.append("")
+    lines.append(f"🎯 Главная рекомендация: {main_pick}.")
+    lines.append(f"Вероятность оценивается как {main_value}%.")
+
+    return "\n".join(lines)
 
 
 def analyze_match_v2(team1, team2):
@@ -42,127 +116,21 @@ def analyze_match_v2(team1, team2):
     }
 
 
-def strength_icon(value):
-    if value >= 80:
-        return "🟢"
-    if value >= 65:
-        return "🟡"
-    return "🔴"
-
-
-
-
-def format_top_3(best_pick):
-    top_3 = best_pick.get("top_3", [])
-
-    if not top_3:
-        return f"🥇 {best_pick['pick']} — {best_pick['value']}% {strength_icon(best_pick['value'])}"
-
-    medals = ["🥇", "🥈", "🥉"]
-    lines = []
-
-    for index, item in enumerate(top_3[:3]):
-        name, value = item
-        lines.append(f"{medals[index]} {name} — {value}% {strength_icon(value)}")
-
-    return "\n".join(lines)
-
-
-def build_ai_comment(result, main_pick, main_value):
-    team1 = result["team1"]
-    team2 = result["team2"]
-
-    rating1 = result["team1_rating"]["rating"]
-    rating2 = result["team2_rating"]["rating"]
-
-    form1 = result["team1_rating"]["form"]
-    form2 = result["team2_rating"]["form"]
-
-    attack1 = result["team1_rating"]["attack"]
-    attack2 = result["team2_rating"]["attack"]
-
-    defense1 = result["team1_rating"]["defense"]
-    defense2 = result["team2_rating"]["defense"]
-
-    probs = result["probabilities"]
-
-    if probs["p1"] > probs["p2"]:
-        favorite = team1
-    elif probs["p2"] > probs["p1"]:
-        favorite = team2
-    else:
-        favorite = "ни одна из команд"
-
-    lines = []
-    lines.append("🧠 FLUX AI Coach")
-    lines.append("")
-    lines.append(f"Модель считает фаворитом матча: {favorite}.")
-    lines.append("")
-
-    if abs(rating1 - rating2) >= 10:
-        better = team1 if rating1 > rating2 else team2
-        lines.append(f"⭐ Общий рейтинг выше у {better}.")
-    else:
-        lines.append("⭐ По общему рейтингу команды близки.")
-
-    if abs(form1 - form2) >= 12:
-        better = team1 if form1 > form2 else team2
-        lines.append(f"📈 Лучшую текущую форму показывает {better}.")
-    else:
-        lines.append("📈 По текущей форме сильного преимущества нет.")
-
-    if attack1 > attack2 + 10:
-        lines.append(f"⚔️ Атака {team1} выглядит опаснее.")
-    elif attack2 > attack1 + 10:
-        lines.append(f"⚔️ Атака {team2} выглядит опаснее.")
-
-    if defense1 > defense2 + 10:
-        lines.append(f"🛡 Защита {team1} выглядит надежнее.")
-    elif defense2 > defense1 + 10:
-        lines.append(f"🛡 Защита {team2} выглядит надежнее.")
-
-    over25 = result["totals"].get("over_2_5", 0)
-
-    if over25 >= 70:
-        lines.append("⚽ Модель ожидает результативную игру.")
-    elif over25 <= 40:
-        lines.append("⚽ Вероятнее осторожный матч с небольшим количеством голов.")
-
-    if main_value >= 80:
-        level = "очень высокая"
-    elif main_value >= 70:
-        level = "высокая"
-    elif main_value >= 60:
-        level = "средняя"
-    else:
-        level = "умеренная"
-
-    lines.append("")
-    lines.append(f"🎯 Главная рекомендация: {main_pick}.")
-    lines.append(f"Вероятность оценивается как {level} ({main_value}%).")
-    lines.append("")
-    lines.append("💡 FLUX AI рекомендует рассматривать этот прогноз как основной вариант.")
-
-    return "\n".join(lines)
-def bar(value):
-    value = int(value)
-    filled = max(0, min(10, value // 10))
-    return "█" * filled + "░" * (10 - filled)
-
 def format_analysis(result):
     team1 = result["team1"]
     team2 = result["team2"]
 
     probabilities = result["probabilities"]
     totals = result["totals"]
+    double_chance = result.get("double_chance", {})
 
     score = result.get("predicted_score", {}).get("score", "—")
     top_3 = result["best_pick"].get("top_3", [])
     top_3_text = format_top_3(result["best_pick"])
 
     confidence = int(result["confidence"])
-if confidence <= 10:
-    confidence = confidence * 10
+    if confidence <= 10:
+        confidence = confidence * 10
 
     if top_3:
         main_pick = top_3[0][0]
@@ -176,16 +144,14 @@ if confidence <= 10:
     team1_rating = result["team1_rating"]["rating"]
     team2_rating = result["team2_rating"]["rating"]
 
-    over25 = totals.get("over_2_5", "—")
-    btts_yes = totals.get("btts_yes", "—")
-
     return f"""
 🏆 FLUX AI PRO
+━━━━━━━━━━━━━━━━━━━━
 
 ⚽ Матч
 {team1} — {team2}
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
 🔥 FLUX Rating
 
@@ -195,9 +161,9 @@ if confidence <= 10:
 {team2}
 {bar(team2_rating)} {team2_rating}/100
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
-🎯 Исход
+📊 Исход
 
 П1 {bar(probabilities["p1"])} {probabilities["p1"]}%
 
@@ -205,7 +171,7 @@ X  {bar(probabilities["draw"])} {probabilities["draw"]}%
 
 П2 {bar(probabilities["p2"])} {probabilities["p2"]}%
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
 ⭐ Главный прогноз
 👉 {main_pick}
@@ -216,24 +182,32 @@ X  {bar(probabilities["draw"])} {probabilities["draw"]}%
 🧠 AI Confidence:
 {bar(confidence)} {confidence}%
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
-🏆 ТОП-3 рекомендации
+🏆 ТОП-3 прогноза
 {top_3_text}
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
 ⚽ Тоталы
 
 ТБ 1.5 — {totals.get("over_1_5", "—")}%
-ТБ 2.5 — {over25}%
+ТБ 2.5 — {totals.get("over_2_5", "—")}%
 ТБ 3.5 — {totals.get("over_3_5", "—")}%
 
 🥅 Обе забьют:
-Да — {btts_yes}%
+Да — {totals.get("btts_yes", "—")}%
 Нет — {totals.get("btts_no", "—")}%
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
+
+🔒 Двойной шанс
+
+1X — {double_chance.get("1X", "—")}%
+12 — {double_chance.get("12", "—")}%
+X2 — {double_chance.get("X2", "—")}%
+
+━━━━━━━━━━━━━━━━━━━━
 
 📊 Вероятный счёт:
 {score}
@@ -241,12 +215,11 @@ X  {bar(probabilities["draw"])} {probabilities["draw"]}%
 ⚠️ Риск:
 {result["risk"]}
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
-🧠 AI Комментарий:
 {ai_comment}
 
-━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
 📢 Ежедневные ТОП-3 прогнозы:
 {CHANNEL_URL}
@@ -256,6 +229,12 @@ X  {bar(probabilities["draw"])} {probabilities["draw"]}%
 """
 
 
-def analyze_and_format(team1, team2):
-    result = analyze_match_v2(team1, team2)
+def build_message_text(result):
     return format_analysis(result)
+
+
+__all__ = [
+    "analyze_match_v2",
+    "format_analysis",
+    "build_message_text",
+]
