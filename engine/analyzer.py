@@ -50,9 +50,9 @@ def strength_icon(value):
     return "🔴"
 
 
-def confidence_stars(confidence):
-    filled = max(1, min(10, int(confidence)))
-    return "★" * filled + "☆" * (10 - filled)
+confidence = int(result["confidence"])
+if confidence <= 10:
+    confidence = confidence * 10
 
 
 def format_top_3(best_pick):
