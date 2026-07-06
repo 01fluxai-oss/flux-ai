@@ -9,6 +9,7 @@ def bar(value):
     blocks = round(value / 10)
     return "█" * blocks + "░" * (10 - blocks)
 
+
 def form_bar(value):
     value = int(value)
 
@@ -56,31 +57,26 @@ def build_ai_comment(result, main_pick, main_value):
     r1 = result["team1_rating"]
     r2 = result["team2_rating"]
 
-    attack1 = r1["attack"]
-    attack2 = r2["attack"]
-
-    defense1 = r1["defense"]
-    defense2 = r2["defense"]
-
     form1 = r1["form"]
     form2 = r2["form"]
+    attack1 = r1["attack"]
+    attack2 = r2["attack"]
+    defense1 = r1["defense"]
+    defense2 = r2["defense"]
 
     totals = result["totals"]
     over25 = totals["over_2_5"]
     btts = totals["btts_yes"]
 
     lines = []
-
     lines.append("🧠 FLUX AI Coach")
     lines.append("━━━━━━━━━━━━━━━━━━━━")
     lines.append("")
-
     lines.append("📈 Последняя форма")
     lines.append("")
     lines.append(f"{team1}: {form_bar(form1)}")
     lines.append(f"{team2}: {form_bar(form2)}")
     lines.append("")
-    
     lines.append("📊 Общая форма")
 
     if form1 > form2 + 5:
@@ -91,7 +87,6 @@ def build_ai_comment(result, main_pick, main_value):
         lines.append("⚖️ Команды находятся примерно в одинаковой форме.")
 
     lines.append("")
-
     lines.append("⚔️ Атака")
 
     if attack1 > attack2 + 5:
@@ -102,7 +97,6 @@ def build_ai_comment(result, main_pick, main_value):
         lines.append("⚖️ Атакующий потенциал примерно одинаковый.")
 
     lines.append("")
-
     lines.append("🛡 Защита")
 
     if defense1 > defense2 + 5:
@@ -116,10 +110,8 @@ def build_ai_comment(result, main_pick, main_value):
 
     if over25 >= 70:
         lines.append("⚽ Модель ожидает большое количество голов.")
-
     elif over25 <= 40:
         lines.append("⚽ Ожидается осторожный матч.")
-
     else:
         lines.append("⚽ Возможен открытый футбол.")
 
@@ -129,7 +121,7 @@ def build_ai_comment(result, main_pick, main_value):
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━")
     lines.append("")
-    lines.append(f"⭐ Главная рекомендация")
+    lines.append("⭐ Главная рекомендация")
     lines.append(f"👉 {main_pick}")
     lines.append(f"🎯 Вероятность: {main_value}%")
 
@@ -195,14 +187,15 @@ def format_analysis(result):
 
     team1_rating = result["team1_rating"]["rating"]
     team2_rating = result["team2_rating"]["rating"]
+
     power_diff = team1_rating - team2_rating
 
-if power_diff > 0:
-    power_text = f"{team1} +{power_diff}"
-elif power_diff < 0:
-    power_text = f"{team2} +{abs(power_diff)}"
-else:
-    power_text = "Равный баланс"
+    if power_diff > 0:
+        power_text = f"{team1} +{power_diff}"
+    elif power_diff < 0:
+        power_text = f"{team2} +{abs(power_diff)}"
+    else:
+        power_text = "Равный баланс"
 
     return f"""
 🏆 FLUX AI PRO
@@ -212,6 +205,7 @@ else:
 {team1} — {team2}
 
 ━━━━━━━━━━━━━━━━━━━━
+
 ⚡ FLUX Power Index
 
 {team1}
