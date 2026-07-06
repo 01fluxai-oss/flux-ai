@@ -75,6 +75,12 @@ def build_ai_comment(result, main_pick, main_value):
     lines.append("━━━━━━━━━━━━━━━━━━━━")
     lines.append("")
 
+    lines.append("📈 Последняя форма")
+    lines.append("")
+    lines.append(f"{team1}: {form_bar(form1)}")
+    lines.append(f"{team2}: {form_bar(form2)}")
+    lines.append("")
+    
     lines.append("📊 Общая форма")
 
     if form1 > form2 + 5:
