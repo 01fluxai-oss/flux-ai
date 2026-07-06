@@ -39,47 +39,79 @@ def build_ai_comment(result, main_pick, main_value):
     team1 = result["team1"]
     team2 = result["team2"]
 
-    rating1 = result["team1_rating"]["rating"]
-    rating2 = result["team2_rating"]["rating"]
+    r1 = result["team1_rating"]
+    r2 = result["team2_rating"]
 
-    attack1 = result["team1_rating"]["attack"]
-    attack2 = result["team2_rating"]["attack"]
+    attack1 = r1["attack"]
+    attack2 = r2["attack"]
 
-    defense1 = result["team1_rating"]["defense"]
-    defense2 = result["team2_rating"]["defense"]
+    defense1 = r1["defense"]
+    defense2 = r2["defense"]
+
+    form1 = r1["form"]
+    form2 = r2["form"]
 
     totals = result["totals"]
-    over25 = totals.get("over_2_5", 0)
+    over25 = totals["over_2_5"]
+    btts = totals["btts_yes"]
 
     lines = []
+
     lines.append("🧠 FLUX AI Coach")
+    lines.append("━━━━━━━━━━━━━━━━━━━━")
     lines.append("")
 
-    if rating1 > rating2:
-        lines.append(f"• {team1} выглядит сильнее по общему рейтингу.")
-    elif rating2 > rating1:
-        lines.append(f"• {team2} выглядит сильнее по общему рейтингу.")
-    else:
-        lines.append("• Команды выглядят близко по общему уровню.")
+    lines.append("📊 Общая форма")
 
-    if attack1 + attack2 >= 110:
-        lines.append("• Атакующий потенциал матча высокий.")
+    if form1 > form2 + 5:
+        lines.append(f"✅ {team1} находится в лучшей форме.")
+    elif form2 > form1 + 5:
+        lines.append(f"✅ {team2} находится в лучшей форме.")
     else:
-        lines.append("• Атакующий потенциал матча умеренный.")
+        lines.append("⚖️ Команды находятся примерно в одинаковой форме.")
 
-    if defense1 > defense2 + 10:
-        lines.append(f"• Защита {team1} выглядит надежнее.")
-    elif defense2 > defense1 + 10:
-        lines.append(f"• Защита {team2} выглядит надежнее.")
+    lines.append("")
+
+    lines.append("⚔️ Атака")
+
+    if attack1 > attack2 + 5:
+        lines.append(f"🔥 Атака {team1} выглядит опаснее.")
+    elif attack2 > attack1 + 5:
+        lines.append(f"🔥 Атака {team2} выглядит опаснее.")
+    else:
+        lines.append("⚖️ Атакующий потенциал примерно одинаковый.")
+
+    lines.append("")
+
+    lines.append("🛡 Защита")
+
+    if defense1 > defense2 + 5:
+        lines.append(f"🧱 Защита {team1} выглядит надежнее.")
+    elif defense2 > defense1 + 5:
+        lines.append(f"🧱 Защита {team2} выглядит надежнее.")
+    else:
+        lines.append("⚖️ Защита команд примерно одинаковая.")
+
+    lines.append("")
 
     if over25 >= 70:
-        lines.append("• Модель ожидает результативную игру.")
+        lines.append("⚽ Модель ожидает большое количество голов.")
+
     elif over25 <= 40:
-        lines.append("• Модель ожидает осторожный матч.")
+        lines.append("⚽ Ожидается осторожный матч.")
+
+    else:
+        lines.append("⚽ Возможен открытый футбол.")
+
+    if btts >= 65:
+        lines.append("🥅 Высока вероятность обмена голами.")
 
     lines.append("")
-    lines.append(f"🎯 Главная рекомендация: {main_pick}.")
-    lines.append(f"Вероятность оценивается как {main_value}%.")
+    lines.append("━━━━━━━━━━━━━━━━━━━━")
+    lines.append("")
+    lines.append(f"⭐ Главная рекомендация")
+    lines.append(f"👉 {main_pick}")
+    lines.append(f"🎯 Вероятность: {main_value}%")
 
     return "\n".join(lines)
 
