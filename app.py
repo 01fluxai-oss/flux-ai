@@ -299,7 +299,14 @@ def telegram_webhook():
         return "OK"
 
         if text == "/pro":
-           url = create_checkout_session(user_id)
+           url = create_checkout_session(user_id)if text == "/profile":
+        send_message(
+        chat_id,
+        profile_message(user_id),
+        reply_markup=main_menu()
+    )
+    return "OK"
+            
 
         send_message(
             chat_id,
