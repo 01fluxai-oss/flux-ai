@@ -199,9 +199,11 @@ def format_analysis(result):
 
 🎯 Исход
 
-П1  {bar(probabilities["p1"])} {probabilities["p1"]}%
-X   {bar(probabilities["draw"])} {probabilities["draw"]}%
-П2  {bar(probabilities["p2"])} {probabilities["p2"]}%
+П1 {bar(probabilities["p1"])} {probabilities["p1"]}%
+
+X  {bar(probabilities["draw"])} {probabilities["draw"]}%
+
+П2 {bar(probabilities["p2"])} {probabilities["p2"]}%
 
 ━━━━━━━━━━━━━━━━
 
