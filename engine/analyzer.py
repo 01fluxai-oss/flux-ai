@@ -142,7 +142,10 @@ def build_ai_comment(result, main_pick, main_value):
     lines.append("💡 FLUX AI рекомендует рассматривать этот прогноз как основной вариант.")
 
     return "\n".join(lines)
-
+def bar(value):
+    value = int(value)
+    filled = max(0, min(10, value // 10))
+    return "█" * filled + "░" * (10 - filled)
 
 def format_analysis(result):
     team1 = result["team1"]
@@ -156,7 +159,6 @@ def format_analysis(result):
     top_3_text = format_top_3(result["best_pick"])
 
     confidence = result["confidence"]
-    stars = confidence_stars(confidence)
 
     if top_3:
         main_pick = top_3[0][0]
@@ -167,89 +169,81 @@ def format_analysis(result):
 
     ai_comment = build_ai_comment(result, main_pick, main_value)
 
+    team1_rating = result["team1_rating"]["rating"]
+    team2_rating = result["team2_rating"]["rating"]
+
+    over25 = totals.get("over_2_5", "—")
+    btts_yes = totals.get("btts_yes", "—")
+
     return f"""
 🏆 FLUX AI PRO
 
 ⚽ Матч
 {team1} — {team2}
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━
 
-⭐ Сила команд
-{team1}: {result["team1_rating"]["rating"]}/100
-{team2}: {result["team2_rating"]["rating"]}/100
+🔥 FLUX Rating
 
-📈 Форма
-{team1}: {result["team1_rating"]["form"]}/100
-{team2}: {result["team2_rating"]["form"]}/100
+{team1}
+{bar(team1_rating)} {team1_rating}/100
 
-⚔️ Атака
-{team1}: {result["team1_rating"]["attack"]}/100
-{team2}: {result["team2_rating"]["attack"]}/100
+{team2}
+{bar(team2_rating)} {team2_rating}/100
 
-🛡 Защита
-{team1}: {result["team1_rating"]["defense"]}/100
-{team2}: {result["team2_rating"]["defense"]}/100
-
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━
 
 🎯 Исход
-П1 — {probabilities["p1"]}%
-X — {probabilities["draw"]}%
-П2 — {probabilities["p2"]}%
 
-━━━━━━━━━━━━━━━━━━
+П1  {bar(probabilities["p1"])} {probabilities["p1"]}%
+X   {bar(probabilities["draw"])} {probabilities["draw"]}%
+П2  {bar(probabilities["p2"])} {probabilities["p2"]}%
 
-🏆 ТОП-3 рекомендации
-{top_3_text}
+━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━
-
-⚽ Голы
-ТБ 1.5 — {totals.get("over_1_5", "—")}%
-ТБ 2.5 — {totals.get("over_2_5", "—")}%
-ТБ 3.5 — {totals.get("over_3_5", "—")}%
-
-🥅 Обе забьют
-Да — {totals["btts_yes"]}%
-Нет — {totals["btts_no"]}%
-
-🎱 Возможный счет
-{score}
-
-━━━━━━━━━━━━━━━━━━
-
-⭐ Индекс уверенности
-{stars}
-{confidence}/10
-
-⚠️ Риск
-{result["risk"]}
-
-📊 Качество данных
-{result["data_quality"]}/100
-
-━━━━━━━━━━━━━━━━━━
-
-{ai_comment}
-
-🏆 Основной прогноз:
+⭐ Главный прогноз
 👉 {main_pick}
 
 🎯 Вероятность:
 {main_value}%
 
-━━━━━━━━━━━━━━━━━━
+🧠 AI Confidence:
+{bar(confidence)} {confidence}%
 
-Источник:
-{result["source"]}
+━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━
+🏆 ТОП-3 рекомендации
+{top_3_text}
 
-🏆 Ежедневные ТОП-3 прогнозы FLUX AI:
+━━━━━━━━━━━━━━━━
+
+⚽ Тоталы
+
+ТБ 1.5 — {totals.get("over_1_5", "—")}%
+ТБ 2.5 — {over25}%
+ТБ 3.5 — {totals.get("over_3_5", "—")}%
+
+🥅 Обе забьют:
+Да — {btts_yes}%
+Нет — {totals.get("btts_no", "—")}%
+
+━━━━━━━━━━━━━━━━
+
+📊 Вероятный счёт:
+{score}
+
+⚠️ Риск:
+{result["risk"]}
+
+━━━━━━━━━━━━━━━━
+
+🧠 AI Комментарий:
+{ai_comment}
+
+━━━━━━━━━━━━━━━━
+
+📢 Ежедневные ТОП-3 прогнозы:
 {CHANNEL_URL}
-
-📢 Подпишись на канал, чтобы не пропускать лучшие прогнозы.
 
 Важно:
 Прогноз не является гарантией результата.
