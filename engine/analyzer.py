@@ -195,6 +195,14 @@ def format_analysis(result):
 
     team1_rating = result["team1_rating"]["rating"]
     team2_rating = result["team2_rating"]["rating"]
+    power_diff = team1_rating - team2_rating
+
+if power_diff > 0:
+    power_text = f"{team1} +{power_diff}"
+elif power_diff < 0:
+    power_text = f"{team2} +{abs(power_diff)}"
+else:
+    power_text = "Равный баланс"
 
     return f"""
 🏆 FLUX AI PRO
@@ -202,6 +210,18 @@ def format_analysis(result):
 
 ⚽ Матч
 {team1} — {team2}
+
+━━━━━━━━━━━━━━━━━━━━
+⚡ FLUX Power Index
+
+{team1}
+{bar(team1_rating)} {team1_rating}/100
+
+{team2}
+{bar(team2_rating)} {team2_rating}/100
+
+Преимущество:
+{power_text}
 
 ━━━━━━━━━━━━━━━━━━━━
 
