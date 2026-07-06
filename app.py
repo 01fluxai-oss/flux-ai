@@ -214,6 +214,22 @@ def status_message():
         "Статус: Online"
     )
 
+def profile_message(user_id):
+    user = get_user(user_id)
+
+    if not user:
+        return "👤 Профиль не найден."
+
+    pro = "✅ Активен" if is_pro(user_id) else "❌ Не активен"
+
+    return (
+        "👤 МОЙ ПРОФИЛЬ\n\n"
+        f"🆔 ID: {user_id}\n"
+        f"💎 FLUX PRO: {pro}\n\n"
+        "📊 Статистика:\n"
+        "• Анализ матчей: скоро\n"
+        "• Победных прогнозов: скоро\n"
+    )
 
 def today_top_3_message():
     try:
