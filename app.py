@@ -275,6 +275,8 @@ def telegram_webhook():
         text = "/channel"
     elif text == "💎 FLUX PRO":
         text = "/pro"
+    elif text == "👤 Мой профиль":
+        text = "/profile"
     elif text == "ℹ️ О проекте":
         text = "/about"
     elif text == "📊 Статус":
