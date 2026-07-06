@@ -238,6 +238,37 @@ def home():
 def health():
     return "OK"
 
+def profile_message(user_id):
+    user = get_user(user_id)
+
+    if user:
+        pro = "💎 PRO" if is_pro(user_id) else "🆓 FREE"
+
+        return f"""👤 МОЙ ПРОФИЛЬ
+
+━━━━━━━━━━━━━━━━
+
+🆔 ID: {user_id}
+
+📊 Статус:
+{pro}
+
+⚽ Анализов выполнено:
+0
+
+🏆 VIP прогнозов:
+0
+
+📅 Подписка:
+{"Активна ✅" if is_pro(user_id) else "Не активна ❌"}
+
+━━━━━━━━━━━━━━━━
+
+🚀 FLUX AI v1.0
+
+Спасибо, что пользуетесь FLUX AI ❤️
+"""
+    return "❌ Пользователь не найден. Нажми /start."
 
 @app.route(f"/telegram/{BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
