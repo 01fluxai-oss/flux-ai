@@ -4,16 +4,17 @@ from engine.v3_engine import analyze_v3
 
 CHANNEL_URL = "https://t.me/FluxAIDaily"
 
+def bar(value):
+    value = max(0, min(100, int(value)))
+    blocks = round(value / 10)
+    return "🟩" * blocks + "⬜" * (10 - blocks)
+
 
 def analyze_match_v2(team1, team2):
     data = get_match_data(team1, team2)
 
     team1_form = data["team1_form"]
     team2_form = data["team2_form"]
- def bar(value):
-    value = max(0, min(100, int(value)))
-    blocks = round(value / 10)
-    return "🟩" * blocks + "⬜" * (10 - blocks)
 
     v3 = analyze_v3(
         team1=data.get("team1", team1),
