@@ -1,12 +1,14 @@
+from database.db import add_user, get_user, is_pro, activate_pro, save_payment
 import os
 import requests
 from payments.stripe import create_checkout_session
 from threading import Thread
 from flask import Flask, request
-from database.db import add_user, get_user, is_pro
+
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
 CHANNEL_ID = "-1003654137478"
 CHANNEL_USERNAME = "@FluxAIDaily"
@@ -364,6 +366,14 @@ def telegram_webhook():
         )
 
     return "OK"
+
+
+@app.route("/stripe-webhook", methods=["POST"])
+def stripe_webhook():
+    ...
+    return "OK"
+
+
 
 
 def set_webhook():
