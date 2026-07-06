@@ -233,8 +233,14 @@ def build_message_text(result):
     return format_analysis(result)
 
 
+def analyze_and_format(team1, team2):
+    result = analyze_match_v2(team1, team2)
+    return format_analysis(result)
+
+
 __all__ = [
     "analyze_match_v2",
     "format_analysis",
     "build_message_text",
+    "analyze_and_format",
 ]
