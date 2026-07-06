@@ -33,24 +33,24 @@ def calculate_team_rating(form, home_advantage=False):
     avg_against = form.get("avg_goals_against", goals_against / max(matches, 1))
 
     form_index = clamp(safe_rate(points, matches * 3) * 100, 20, 95)
-    attack_index = clamp(38 + avg_for * 20, 25, 95)
-    defense_index = clamp(92 - avg_against * 18, 25, 95)
+    attack_index = clamp(40 + avg_for * 19, 25, 95)
+    defense_index = clamp(92 - avg_against * 17, 25, 95)
 
     win_rate = safe_rate(wins, matches)
     loss_rate = safe_rate(losses, matches)
     draw_rate = safe_rate(draws, matches)
 
-    streak_index = clamp(50 + win_rate * 35 - loss_rate * 30 - draw_rate * 5, 20, 95)
+    streak_index = clamp(50 + win_rate * 35 - loss_rate * 28 - draw_rate * 4, 20, 95)
     data_quality = clamp(matches * 12, 0, 100)
-    home_bonus = 8 if home_advantage else 0
+    home_bonus = 6 if home_advantage else 0
 
     rating = (
-        form_index * 0.30
-        + attack_index * 0.25
-        + defense_index * 0.20
+        form_index * 0.32
+        + attack_index * 0.24
+        + defense_index * 0.22
+        + streak_index * 0.10
+        + data_quality * 0.06
         + home_bonus
-        + data_quality * 0.10
-        + streak_index * 0.05
     )
 
     return {
@@ -71,14 +71,14 @@ def calculate_probabilities(team1_rating, team2_rating):
     diff = r1 - r2
     abs_diff = abs(diff)
 
-    draw = clamp(30 - abs_diff * 0.25, 16, 32)
+    draw = clamp(31 - abs_diff * 0.23, 17, 33)
     available = 100 - draw
 
-    p1 = available / 2 + diff * 0.55
+    p1 = available / 2 + diff * 0.50
     p2 = available - p1
 
-    p1 = clamp(p1, 5, 85)
-    p2 = clamp(p2, 5, 85)
+    p1 = clamp(p1, 6, 84)
+    p2 = clamp(p2, 6, 84)
 
     total = p1 + p2 + draw
     correction = 100 - total
@@ -108,11 +108,11 @@ def calculate_totals(team1_form, team2_form, team1_rating, team2_rating):
     attack_pressure = (team1_rating["attack"] + team2_rating["attack"]) / 2
     defense_resistance = (team1_rating["defense"] + team2_rating["defense"]) / 2
 
-    over_15 = clamp(avg_goals * 18 + attack_pressure * 0.20, 40, 90)
-    over_25 = clamp(avg_goals * 17 + attack_pressure * 0.23 - defense_resistance * 0.08, 25, 80)
-    over_35 = clamp(avg_goals * 13 + attack_pressure * 0.18 - defense_resistance * 0.10, 15, 65)
+    over_15 = clamp(avg_goals * 18 + attack_pressure * 0.22, 42, 91)
+    over_25 = clamp(avg_goals * 17 + attack_pressure * 0.25 - defense_resistance * 0.08, 26, 82)
+    over_35 = clamp(avg_goals * 13 + attack_pressure * 0.18 - defense_resistance * 0.10, 14, 66)
 
-    btts_yes = clamp(avg_goals * 15 + attack_pressure * 0.20 - defense_resistance * 0.05, 25, 78)
+    btts_yes = clamp(avg_goals * 15 + attack_pressure * 0.21 - defense_resistance * 0.05, 25, 80)
 
     return {
         "avg_goals": round(avg_goals, 2),
@@ -157,26 +157,46 @@ def predict_score(team1_form, team2_form):
 
 
 def choose_best_pick(probabilities, totals, double_chance):
-    picks = {
-        "П1": probabilities["p1"],
-        "X": probabilities["draw"],
-        "П2": probabilities["p2"],
-        "1X": double_chance["1X"],
-        "12": double_chance["12"],
-        "X2": double_chance["X2"],
-        "ТБ 2.5": totals["over_2_5"],
-        "ТМ 2.5": totals["under_2_5"],
-        "ТБ 3.5": totals["over_3_5"],
-        "Обе забьют — Да": totals["btts_yes"],
-        "Обе забьют — Нет": totals["btts_no"],
-    }
+    candidates = []
 
-    sorted_picks = sorted(picks.items(), key=lambda x: x[1], reverse=True)
+    candidates.append(("ТБ 1.5", totals["over_1_5"], 1.00))
+    candidates.append(("ТБ 2.5", totals["over_2_5"], 1.12))
+    candidates.append(("ТМ 2.5", totals["under_2_5"], 1.05))
+    candidates.append(("Обе забьют — Да", totals["btts_yes"], 1.08))
+    candidates.append(("Обе забьют — Нет", totals["btts_no"], 1.03))
+
+    if probabilities["p1"] >= 44:
+        candidates.append(("П1", probabilities["p1"], 1.18))
+
+    if probabilities["p2"] >= 44:
+        candidates.append(("П2", probabilities["p2"], 1.18))
+
+    if probabilities["draw"] >= 31:
+        candidates.append(("X", probabilities["draw"], 1.25))
+
+    # Двойные шансы используем только как защитный рынок.
+    if double_chance["1X"] >= 68 and probabilities["p1"] >= probabilities["p2"]:
+        candidates.append(("1X", double_chance["1X"], 0.92))
+
+    if double_chance["X2"] >= 68 and probabilities["p2"] >= probabilities["p1"]:
+        candidates.append(("X2", double_chance["X2"], 0.92))
+
+    # 12 не должен быть главным прогнозом при равных командах.
+    if double_chance["12"] >= 76 and probabilities["draw"] <= 24:
+        candidates.append(("12", double_chance["12"], 0.82))
+
+    ranked = sorted(
+        candidates,
+        key=lambda item: item[1] * item[2],
+        reverse=True,
+    )
+
+    top_3 = [(name, value) for name, value, _ in ranked[:3]]
 
     return {
-        "pick": sorted_picks[0][0],
-        "value": sorted_picks[0][1],
-        "top_3": sorted_picks[:3],
+        "pick": ranked[0][0],
+        "value": ranked[0][1],
+        "top_3": top_3,
     }
 
 
@@ -190,16 +210,16 @@ def calculate_risk(best_pick, team1_rating, team2_rating):
     rating_diff = abs(team1_rating["rating"] - team2_rating["rating"])
 
     confidence = clamp(
-        value / 13 + data_quality / 35 + rating_diff / 25,
-        1,
-        10,
+        value * 0.62 + data_quality * 0.18 + rating_diff * 0.20,
+        35,
+        92,
     )
 
     if data_quality < 30:
         risk = "Высокий"
-    elif confidence >= 8:
+    elif confidence >= 75:
         risk = "Низкий"
-    elif confidence >= 6:
+    elif confidence >= 60:
         risk = "Средний"
     else:
         risk = "Высокий"
