@@ -50,9 +50,6 @@ def strength_icon(value):
     return "🔴"
 
 
-confidence = int(result["confidence"])
-if confidence <= 10:
-    confidence = confidence * 10
 
 
 def format_top_3(best_pick):
@@ -163,7 +160,9 @@ def format_analysis(result):
     top_3 = result["best_pick"].get("top_3", [])
     top_3_text = format_top_3(result["best_pick"])
 
-    confidence = result["confidence"]
+    confidence = int(result["confidence"])
+if confidence <= 10:
+    confidence = confidence * 10
 
     if top_3:
         main_pick = top_3[0][0]
