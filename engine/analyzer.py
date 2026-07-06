@@ -9,6 +9,20 @@ def bar(value):
     blocks = round(value / 10)
     return "█" * blocks + "░" * (10 - blocks)
 
+def form_bar(value):
+    value = int(value)
+
+    if value >= 85:
+        return "🟢🟢🟢🟢🟢"
+    if value >= 75:
+        return "🟢🟢🟢🟢🟡"
+    if value >= 65:
+        return "🟢🟢🟢🟡🔴"
+    if value >= 55:
+        return "🟢🟢🟡🔴🔴"
+
+    return "🟢🟡🔴🔴🔴"
+
 
 def strength_icon(value):
     value = int(value)
