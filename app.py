@@ -4,7 +4,17 @@ import stripe
 from threading import Thread
 from flask import Flask, request
 
-from database.db import add_user, get_user, is_pro, activate_pro, save_payment
+from database.db import (
+    add_user,
+    get_user,
+    is_pro,
+    activate_pro,
+    save_payment,
+    save_prediction,
+    can_analyze,
+    increase_today_usage,
+    free_limit_message,
+)
 from payments.stripe import create_checkout_session
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
