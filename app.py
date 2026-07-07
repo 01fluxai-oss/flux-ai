@@ -13,9 +13,12 @@ from database.db import (
     save_prediction,
     can_analyze,
     increase_today_usage,
+    get_today_usage,
     free_limit_message,
 )
+
 from payments.stripe import create_checkout_session
+
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://flux-ai-8p34.onrender.com")
@@ -24,12 +27,17 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 CHANNEL_URL = "https://t.me/FluxAIDaily"
 CHANNEL_USERNAME = "@FluxAIDaily"
 
+FREE_DAILY_LIMIT = 2
+
 app = Flask(__name__)
 
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+    }
 
     if reply_markup:
         payload["reply_markup"] = reply_markup
@@ -51,13 +59,14 @@ def main_menu():
             ["ℹ️ О проекте", "📊 Статус"],
         ],
         "resize_keyboard": True,
+        "one_time_keyboard": False,
     }
 
 
 def normalize_text(text):
     return (
-        text.replace("–", "-")
-        .replace("—", "-")
+        text.replace("—", "-")
+        .replace("–", "-")
         .replace("−", "-")
         .strip()
     )
@@ -71,9 +80,11 @@ def detect_match(line):
     for sep in separators:
         if sep in line:
             parts = line.split(sep, 1)
+
             if len(parts) == 2:
                 team1 = parts[0].strip()
                 team2 = parts[1].strip()
+
                 if team1 and team2:
                     return team1, team2
 
@@ -85,38 +96,11 @@ def detect_matches(text):
 
     for line in text.splitlines():
         team1, team2 = detect_match(line.strip())
+
         if team1 and team2:
             matches.append((team1, team2))
 
     return matches
-
-
-def analyze_match_text(text):
-    from engine.analyzer import analyze_and_format
-
-    matches = detect_matches(text)
-
-    if not matches:
-        return (
-            "⚠️ Напиши матч в формате:\n\n"
-            "Real Madrid - Barcelona\n"
-            "Brazil - Norway\n"
-            "Portugal - Spain"
-        )
-
-    if len(matches) == 1:
-        team1, team2 = matches[0]
-        return analyze_and_format(team1, team2)
-
-    results = []
-    for i, (team1, team2) in enumerate(matches[:5], start=1):
-        try:
-            results.append(f"#{i}\n{analyze_and_format(team1, team2)}")
-        except Exception as e:
-            print("MULTI_ANALYSIS_ERROR:", e, flush=True)
-            results.append(f"#{i}\n⚠️ Не получилось: {team1} - {team2}")
-
-    return "\n\n".join(results)
 
 
 def start_message():
@@ -127,8 +111,10 @@ def start_message():
         "🌍 ЧМ-2026\n"
         "📈 Результаты\n"
         "💎 FLUX PRO\n\n"
+        "FREE: 2 анализа в день\n"
+        "PRO: безлимит\n\n"
         "Напиши матч:\n"
-        "Brazil - Norway"
+        "Real Madrid - Barcelona"
     )
 
 
@@ -137,14 +123,15 @@ def help_message():
         "⚽ Напиши матч в формате:\n\n"
         "Real Madrid - Barcelona\n"
         "Brazil - Norway\n"
-        "Portugal - Spain"
+        "Portugal - Spain\n\n"
+        "Можно отправить несколько матчей списком."
     )
 
 
 def about_message():
     return (
         "ℹ️ FLUX AI — AI-бот для анализа футбольных матчей.\n\n"
-        "Бот оценивает форму команд, вероятности, тоталы, двойной шанс и лучшие рынки.\n\n"
+        "Бот оценивает форму команд, вероятности, тоталы, двойной шанс и лучший прогноз.\n\n"
         "Прогноз не является гарантией результата."
     )
 
@@ -165,15 +152,21 @@ def profile_message(user_id):
     if not user:
         return "👤 Профиль не найден. Нажми /start."
 
-    pro = "✅ Активен" if is_pro(user_id) else "❌ Не активен"
+    pro_status = "✅ Активен" if is_pro(user_id) else "❌ Не активен"
+    usage = get_today_usage(user_id)
+
+    if is_pro(user_id):
+        limit_text = "Безлимит"
+    else:
+        limit_text = f"{usage}/{FREE_DAILY_LIMIT} сегодня"
 
     return (
         "👤 МОЙ ПРОФИЛЬ\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🆔 ID: {user_id}\n\n"
-        f"💎 FLUX PRO: {pro}\n\n"
+        f"💎 FLUX PRO: {pro_status}\n\n"
         "📊 Статистика:\n"
-        "• Анализ матчей: скоро\n"
+        f"• Анализы сегодня: {limit_text}\n"
         "• Победных прогнозов: скоро\n\n"
         "🚀 FLUX AI v1.0\n\n"
         "Спасибо, что пользуетесь FLUX AI ❤️"
@@ -247,6 +240,96 @@ def today_top_3_message():
     )
 
 
+def pro_message():
+    return (
+        "💎 FLUX AI PRO\n\n"
+        "Что входит:\n\n"
+        "✅ Безлимитный AI-анализ матчей\n"
+        "✅ Расширенная статистика\n"
+        "✅ TOP-3 прогнозов дня\n"
+        "✅ Прогнозы ЧМ-2026\n"
+        "✅ Доступ к новым PRO-функциям\n\n"
+        "Стоимость: $9.99 / месяц\n\n"
+        "👇 Нажми кнопку ниже для оплаты:"
+    )
+
+
+def analyze_match_text(text):
+    from engine.analyzer import analyze_and_format
+
+    matches = detect_matches(text)
+
+    if not matches:
+        return help_message()
+
+    if len(matches) == 1:
+        team1, team2 = matches[0]
+        return analyze_and_format(team1, team2)
+
+    results = []
+
+    for index, (team1, team2) in enumerate(matches[:5], start=1):
+        try:
+            result = analyze_and_format(team1, team2)
+            results.append(f"#{index}\n{result}")
+        except Exception as e:
+            print("MULTI_ANALYSIS_ERROR:", e, flush=True)
+            results.append(f"#{index}\n⚠️ Не получилось: {team1} - {team2}")
+
+    return "\n\n".join(results)
+
+
+def handle_analysis(chat_id, user_id, text):
+    matches = detect_matches(text)
+
+    print(">>> MATCHES:", matches, flush=True)
+
+    if not matches:
+        send_message(chat_id, help_message(), reply_markup=main_menu())
+        return
+
+    if not is_pro(user_id):
+        used = get_today_usage(user_id)
+        remaining = FREE_DAILY_LIMIT - used
+
+        if remaining <= 0:
+            send_message(chat_id, free_limit_message(), reply_markup=main_menu())
+            return
+
+        if len(matches) > remaining:
+            send_message(
+                chat_id,
+                "🔒 У вас осталось бесплатных анализов сегодня: "
+                f"{remaining}\n\n"
+                "Отправьте меньше матчей или оформите FLUX PRO.",
+                reply_markup=main_menu(),
+            )
+            return
+
+    if len(matches) > 1:
+        send_message(chat_id, f"⏳ Анализирую {len(matches)} матчей...", reply_markup=main_menu())
+    else:
+        send_message(chat_id, "⏳ Анализирую матч...", reply_markup=main_menu())
+
+    try:
+        answer = analyze_match_text(text)
+        send_message(chat_id, answer, reply_markup=main_menu())
+
+        for team1, team2 in matches:
+            save_prediction(user_id, f"{team1} - {team2}", answer)
+            increase_today_usage(user_id)
+
+    except Exception as e:
+        print("MATCH_ANALYSIS_ERROR:", e, flush=True)
+        send_message(
+            chat_id,
+            "⚠️ Не получилось сделать анализ.\n\n"
+            "Попробуй другой матч или проверь формат:\n"
+            "Real Madrid - Barcelona",
+            reply_markup=main_menu(),
+        )
+
+
 @app.route("/")
 def home():
     return "FLUX AI Sports PRO v3.0 is running!"
@@ -261,7 +344,14 @@ def health():
 def telegram_webhook():
     data = request.get_json(force=True)
 
+    if not data:
+        return "OK"
+
     message = data.get("message", {})
+
+    if not message:
+        return "OK"
+
     chat = message.get("chat", {})
     user = message.get("from", {})
 
@@ -272,18 +362,22 @@ def telegram_webhook():
     print("==========", flush=True)
     print("TEXT:", repr(text), flush=True)
 
-    if user_id:
-        add_user(user)
-
     if not chat_id:
         return "OK"
+
+    if user_id:
+        add_user(user)
 
     if not text:
         send_message(chat_id, help_message(), reply_markup=main_menu())
         return "OK"
 
     if text == "⚽ Анализ матча":
-        send_message(chat_id, "⚽ Напиши матч:\n\nBrazil - Norway", reply_markup=main_menu())
+        send_message(
+            chat_id,
+            "⚽ Напиши матч:\n\nReal Madrid - Barcelona",
+            reply_markup=main_menu(),
+        )
         return "OK"
 
     if text == "🏆 ТОП-3 дня":
@@ -307,7 +401,7 @@ def telegram_webhook():
         send_message(chat_id, start_message(), reply_markup=main_menu())
         return "OK"
 
-    if text == "/help" or text == "/analyze":
+    if text in ["/help", "/analyze"]:
         send_message(chat_id, help_message(), reply_markup=main_menu())
         return "OK"
 
@@ -349,51 +443,30 @@ def telegram_webhook():
         return "OK"
 
     if text == "/pro":
-        url = create_checkout_session(user_id)
+        try:
+            url = create_checkout_session(user_id)
 
-        send_message(
-            chat_id,
-            "💎 FLUX AI PRO\n\n"
-            "Что входит:\n\n"
-            "✅ Полный AI-анализ матчей\n"
-            "✅ Расширенная статистика\n"
-            "✅ TOP-3 прогнозов дня\n"
-            "✅ Прогнозы ЧМ-2026\n"
-            "✅ Доступ к новым PRO-функциям\n\n"
-            "Стоимость: $9.99 / месяц\n\n"
-            "👇 Нажми кнопку ниже для оплаты:",
-            reply_markup={
-                "inline_keyboard": [
-                    [{"text": "💳 Купить FLUX PRO", "url": url}]
-                ]
-            },
-        )
+            send_message(
+                chat_id,
+                pro_message(),
+                reply_markup={
+                    "inline_keyboard": [
+                        [{"text": "💳 Купить FLUX PRO", "url": url}]
+                    ]
+                },
+            )
+
+        except Exception as e:
+            print("PRO_PAYMENT_ERROR:", e, flush=True)
+            send_message(
+                chat_id,
+                "⚠️ Не получилось открыть оплату. Попробуйте позже.",
+                reply_markup=main_menu(),
+            )
+
         return "OK"
 
-    matches = detect_matches(text)
-    print(">>> MAIN MATCHES:", matches, flush=True)
-
-    if not matches:
-        send_message(chat_id, help_message(), reply_markup=main_menu())
-        return "OK"
-
-    if len(matches) > 1:
-        send_message(chat_id, f"⏳ Анализирую {len(matches)} матчей...", reply_markup=main_menu())
-    else:
-        send_message(chat_id, "⏳ Анализирую матч...", reply_markup=main_menu())
-
-    try:
-        answer = analyze_match_text(text)
-        send_message(chat_id, answer, reply_markup=main_menu())
-    except Exception as e:
-        print("MATCH_ANALYSIS_ERROR:", e, flush=True)
-        send_message(
-            chat_id,
-            "⚠️ Не получилось сделать анализ.\n\n"
-            "Попробуй другой матч или проверь формат:\n"
-            "Real Madrid - Barcelona",
-            reply_markup=main_menu(),
-        )
+    handle_analysis(chat_id, user_id, text)
 
     return "OK"
 
@@ -412,6 +485,7 @@ def stripe_webhook():
             )
         else:
             event = request.get_json(force=True)
+
     except Exception as e:
         print("STRIPE_WEBHOOK_ERROR:", e, flush=True)
         return "BAD", 400
@@ -421,7 +495,11 @@ def stripe_webhook():
 
     print("STRIPE_EVENT:", event_type, flush=True)
 
-    if event_type in ["checkout.session.completed", "customer.subscription.created", "customer.subscription.updated"]:
+    if event_type in [
+        "checkout.session.completed",
+        "customer.subscription.created",
+        "customer.subscription.updated",
+    ]:
         metadata = obj.get("metadata", {})
         user_id = metadata.get("telegram_id")
 
@@ -432,7 +510,13 @@ def stripe_webhook():
 
         if user_id:
             activate_pro(int(user_id))
-            save_payment(int(user_id), str(obj.get("id")))
+            save_payment(
+                int(user_id),
+                provider="stripe",
+                amount=9.99,
+                currency="USD",
+                status="paid",
+            )
             print("PRO_ACTIVATED:", user_id, flush=True)
 
     return "OK"
@@ -443,7 +527,10 @@ def set_webhook():
 
     response = requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
-        json={"url": webhook_url, "drop_pending_updates": True},
+        json={
+            "url": webhook_url,
+            "drop_pending_updates": True,
+        },
         timeout=20,
     )
 
