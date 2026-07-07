@@ -85,7 +85,11 @@ def detect_matches(text):
 def analyze_match_text(text):
     from engine.analyzer import analyze_and_format
 
+    print(">>> BEFORE detect_matches", flush=True)
+
     matches = detect_matches(text)
+
+    print(">>> MATCHES:", matches, flush=True)
 
     if not matches:
         return (
