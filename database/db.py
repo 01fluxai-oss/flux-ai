@@ -47,6 +47,15 @@ def init_db():
     )
     """)
 
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS usage (
+        telegram_id INTEGER,
+        day TEXT,
+        analyses INTEGER DEFAULT 0,
+        PRIMARY KEY (telegram_id, day)
+    )
+    """)
+
     conn.commit()
 
 
@@ -94,7 +103,10 @@ def is_pro(user_id):
     if not row["pro_until"]:
         return False
 
-    return datetime.fromisoformat(row["pro_until"]) > datetime.utcnow()
+    try:
+        return datetime.fromisoformat(row["pro_until"]) > datetime.utcnow()
+    except Exception:
+        return False
 
 
 def get_user(user_id):
@@ -130,7 +142,7 @@ def get_predictions(user_id, limit=20):
     """, (user_id, limit)).fetchall()
 
 
-def save_payment(user_id, provider, amount, currency, status):
+def save_payment(user_id, provider="stripe", amount=9.99, currency="USD", status="paid"):
     conn.execute("""
     INSERT INTO payments
     (telegram_id, provider, amount, currency, status, created_at)
@@ -145,6 +157,64 @@ def save_payment(user_id, provider, amount, currency, status):
     ))
 
     conn.commit()
+
+
+def get_today_key():
+    return datetime.utcnow().strftime("%Y-%m-%d")
+
+
+def get_today_usage(user_id):
+    day = get_today_key()
+
+    row = conn.execute("""
+    SELECT analyses
+    FROM usage
+    WHERE telegram_id=? AND day=?
+    """, (user_id, day)).fetchone()
+
+    if row:
+        return int(row["analyses"])
+
+    return 0
+
+
+def increase_today_usage(user_id):
+    day = get_today_key()
+
+    conn.execute("""
+    INSERT OR IGNORE INTO usage
+    (telegram_id, day, analyses)
+    VALUES (?, ?, 0)
+    """, (user_id, day))
+
+    conn.execute("""
+    UPDATE usage
+    SET analyses = analyses + 1
+    WHERE telegram_id=? AND day=?
+    """, (user_id, day))
+
+    conn.commit()
+
+
+def can_analyze(user_id):
+    if is_pro(user_id):
+        return True
+
+    return get_today_usage(user_id) < 2
+
+
+def free_limit_message():
+    return (
+        "🔒 Вы использовали все 2 бесплатных анализа на сегодня.\n\n"
+        "Оформите FLUX AI PRO и получите:\n"
+        "✅ Безлимитный анализ матчей\n"
+        "✅ Расширенную статистику\n"
+        "✅ ТОП-3 прогнозов дня\n"
+        "✅ Прогнозы ЧМ-2026\n"
+        "✅ Все новые PRO-функции\n\n"
+        "💎 Стоимость: $9.99 / месяц\n\n"
+        "Нажмите кнопку 💎 FLUX PRO в меню."
+    )
 
 
 init_db()
