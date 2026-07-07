@@ -347,7 +347,7 @@ def telegram_webhook():
     if text == "/pro" or text == "💎 FLUX PRO":
         url = create_checkout_session(user_id)
 
-    send_message(
+        send_message(
         chat_id,
         "💎 FLUX AI PRO\n\n"
         "Что входит:\n\n"
@@ -356,13 +356,18 @@ def telegram_webhook():
         "✅ TOP-3 прогнозов дня\n"
         "✅ Прогнозы ЧМ-2026\n"
         "✅ Доступ к новым PRO-функциям\n\n"
-        "Стоимость: 9.99 $ / месяц\n\n"
+        "Стоимость: $9.99 / месяц\n\n"
         "👇 Нажми кнопку ниже для оплаты:",
         reply_markup={
             "inline_keyboard": [
-                [{"text": "💳 Купить FLUX PRO", "url": url}]
+                [
+                    {
+                        "text": "💳 Купить FLUX PRO",
+                        "url": url
+                    }
+                ]
             ]
-        },
+        }
     )
 
     return "OK"
