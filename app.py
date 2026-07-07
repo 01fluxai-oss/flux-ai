@@ -406,8 +406,12 @@ def telegram_webhook():
 
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    ...
-    return "OK"
+    payload = request.get_data(as_text=True)
+
+    print("====== STRIPE WEBHOOK ======", flush=True)
+    print(payload, flush=True)
+
+    return "OK", 200
 
 
 
