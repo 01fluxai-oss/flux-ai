@@ -296,7 +296,7 @@ def profile_message(user_id):
 """
     return "❌ Пользователь не найден. Нажми /start."
 
-@app.route(f"/telegram/{BOT_TOKEN}", methods=["POST"])
+    @app.route(f"/telegram/{BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
     data = request.get_json(force=True)
 
@@ -311,56 +311,86 @@ def telegram_webhook():
     print("==========", flush=True)
     print("TEXT:", repr(text), flush=True)
 
-    if user_id:
-        add_user(user)
+if user_id:
+    add_user(user)
 
-    if not chat_id:
-        return "OK"
+if not chat_id:
+    return "OK"
 
-    if not text:
-        send_message(chat_id, help_message(), reply_markup=main_menu())
-        return "OK"
+if not text:
+    send_message(chat_id, help_message(), reply_markup=main_menu())
+    return "OK"
 
-    if text == "⚽ Анализ матча":
-        send_message(chat_id, "⚽ Напиши матч:\n\nBrazil — Norway", reply_markup=main_menu())
-        return "OK"
+if text == "⚽ Анализ матча":
+    send_message(chat_id, "⚽ Напиши матч:\n\nBrazil - Norway", reply_markup=main_menu())
+    return "OK"
 
-    if text == "🏆 ТОП-3 дня":
-        text = "/today"
-    elif text == "🌍 ЧМ-2026":
-        text = "/worldcup"
-    elif text == "📈 Результаты":
-        text = "/results"
-    elif text == "🏆 Канал":
-        text = "/channel"
-    elif text == "💎 FLUX PRO":
-        text = "/pro"
-    elif text == "👤 Мой профиль":
-        text = "/profile"
-    elif text == "ℹ️ О проекте":
-        text = "/about"
-    elif text == "📊 Статус":
-        text = "/status"
+if text == "🏆 ТОП-3 дня":
+    text = "/today"
+elif text == "🌍 ЧМ-2026":
+    text = "/worldcup"
+elif text == "📈 Результаты":
+    text = "/results"
+elif text == "🏆 Канал":
+    text = "/channel"
+elif text == "💎 FLUX PRO":
+    text = "/pro"
+elif text == "👤 Мой профиль":
+    text = "/profile"
+elif text == "ℹ️ О проекте":
+    text = "/about"
+elif text == "📊 Статус":
+    text = "/status"
 
-    if text == "/start":
-        send_message(chat_id, start_message(), reply_markup=main_menu())
-        return "OK"
-    if text == "/help":
-        send_message(chat_id, help_message(), reply_markup=main_menu())
-        return "OK"
+if text == "/start":
+    send_message(chat_id, start_message(), reply_markup=main_menu())
+    return "OK"
 
-    if text == "/about":
-        send_message(chat_id, about_message(), reply_markup=main_menu())
-        return "OK"
+if text == "/help":
+    send_message(chat_id, help_message(), reply_markup=main_menu())
+    return "OK"
 
-    if text == "/status":
-        send_message(chat_id, status_message(), reply_markup=main_menu())
-        return "OK"
+if text == "/about":
+    send_message(chat_id, about_message(), reply_markup=main_menu())
+    return "OK"
 
-    if text == "/pro" or text == "💎 FLUX PRO":
-        url = create_checkout_session(user_id)
+if text == "/status":
+    send_message(chat_id, status_message(), reply_markup=main_menu())
+    return "OK"
 
-        send_message(
+if text == "/profile":
+    send_message(chat_id, profile_message(user_id), reply_markup=main_menu())
+    return "OK"
+
+if text == "/channel":
+    send_message(
+        chat_id,
+        channel_message(),
+        reply_markup={
+            "inline_keyboard": [
+                [{"text": "🏆 Открыть канал", "url": CHANNEL_URL}]
+            ]
+        },
+    )
+    return "OK"
+
+if text == "/worldcup":
+    send_message(chat_id, worldcup_message(), reply_markup=main_menu())
+    return "OK"
+
+if text == "/results":
+    send_message(chat_id, results_message(), reply_markup=main_menu())
+    return "OK"
+
+if text == "/today":
+    send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...", reply_markup=main_menu())
+    send_message(chat_id, today_top_3_message(), reply_markup=main_menu())
+    return "OK"
+
+if text == "/pro":
+    url = create_checkout_session(user_id)
+
+    send_message(
         chat_id,
         "💎 FLUX AI PRO\n\n"
         "Что входит:\n\n"
@@ -373,85 +403,45 @@ def telegram_webhook():
         "👇 Нажми кнопку ниже для оплаты:",
         reply_markup={
             "inline_keyboard": [
-                [
-                    {
-                        "text": "💳 Купить FLUX PRO",
-                        "url": url
-                    }
-                ]
+                [{"text": "💳 Купить FLUX PRO", "url": url}]
             ]
-        }
+        },
     )
-
     return "OK"
-        
-
-    if text == "/profile":
-        send_message(chat_id, profile_message(user_id), reply_markup=main_menu())
-        return "OK"
-
-       
-
-     
-
-    if text == "/channel":
-        send_message(
-            chat_id,
-            channel_message(),
-            reply_markup={
-                "inline_keyboard": [
-                    [{"text": "🏆 Открыть канал", "url": CHANNEL_URL}]
-                ]
-            },
-        )
-        return "OK"
-
-    if text == "/worldcup":
-        send_message(chat_id, worldcup_message(), reply_markup=main_menu())
-        return "OK"
-
-    if text == "/results":
-        send_message(chat_id, results_message(), reply_markup=main_menu())
-        return "OK"
-
-    if text == "/today":
-        send_message(chat_id, "🏆 Собираю ТОП-3 прогнозов дня...", reply_markup=main_menu())
-        send_message(chat_id, today_top_3_message(), reply_markup=main_menu())
-        return "OK"
 
     matches = detect_matches(text)
+print(">>> MAIN MATCHES:", matches, flush=True)
 
-    if len(matches) > 1:
-        send_message(chat_id, f"⌛ Анализирую {len(matches)} матчей...", reply_markup=main_menu())
-    else:
-        send_message(chat_id, "⌛ Анализирую матч...", reply_markup=main_menu())
-
-    try:
-        answer = analyze_match_text(text)
-        send_message(chat_id, answer, reply_markup=main_menu())
-    except Exception as e:
-        print("MATCH_ANALYSIS_ERROR:", e, flush=True)
-        send_message(
-            chat_id,
-            "⚠️ Не получилось сделать анализ.\n\n"
-            "Проверь формат:\n"
-            "Brazil — Norway",
-            reply_markup=main_menu(),
-        )
-
+if not matches:
+    send_message(
+        chat_id,
+        "⚠️ Напиши матч в формате:\n\n"
+        "Real Madrid - Barcelona\n"
+        "Brazil - Norway\n"
+        "Portugal - Spain",
+        reply_markup=main_menu(),
+    )
     return "OK"
 
+if len(matches) > 1:
+    send_message(chat_id, f"⏳ Анализирую {len(matches)} матчей...", reply_markup=main_menu())
+else:
+    send_message(chat_id, "⏳ Анализирую матч...", reply_markup=main_menu())
 
-@app.route("/stripe-webhook", methods=["POST"])
-def stripe_webhook():
-    payload = request.get_data(as_text=True)
+try:
+    answer = analyze_match_text(text)
+    send_message(chat_id, answer, reply_markup=main_menu())
+except Exception as e:
+    print("MATCH_ANALYSIS_ERROR:", e, flush=True)
+    send_message(
+        chat_id,
+        "⚠️ Не получилось сделать анализ.\n\n"
+        "Попробуй другой матч или проверь формат:\n"
+        "Real Madrid - Barcelona",
+        reply_markup=main_menu(),
+    )
 
-    print("====== STRIPE WEBHOOK ======", flush=True)
-    print(payload, flush=True)
-
-    return "OK", 200
-
-
+return "OK"
 
 
 def set_webhook():
