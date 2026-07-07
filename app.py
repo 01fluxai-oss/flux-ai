@@ -296,7 +296,7 @@ def profile_message(user_id):
 """
     return "❌ Пользователь не найден. Нажми /start."
 
-    @app.route(f"/telegram/{BOT_TOKEN}", methods=["POST"])
+@app.route(f"/telegram/{BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
     data = request.get_json(force=True)
 
