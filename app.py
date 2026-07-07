@@ -344,8 +344,8 @@ def telegram_webhook():
         send_message(chat_id, status_message(), reply_markup=main_menu())
         return "OK"
 
-    if text == "/pro":
-        url = create_checkout_session(user_id)
+    if text == "/pro" or text == "💎 FLUX PRO":
+    url = create_checkout_session(user_id)
 
     send_message(
         chat_id,
