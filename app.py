@@ -58,11 +58,17 @@ def normalize_text(text):
 def detect_match(line):
     line = normalize_text(line)
 
-    for sep in [" — ", " vs ", " VS ", " Vs ", " v ", " V "]:
+    separators = [" — ", " – ", " - ", "-", " vs ", " VS ", " Vs ", " v ", " V "]
+
+    for sep in separators:
         if sep in line:
             parts = line.split(sep, 1)
             if len(parts) == 2:
-                return parts[0].strip(), parts[1].strip()
+                team1 = parts[0].strip()
+                team2 = parts[1].strip()
+
+                if team1 and team2:
+                    return team1, team2
 
     return None, None
 
