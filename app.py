@@ -304,6 +304,9 @@ def telegram_webhook():
     user_id = user.get("id")
     text = message.get("text", "").strip()
 
+    print("==========", flush=True)
+    print("TEXT:", repr(text), flush=True)
+
     if user_id:
         add_user(user)
 
