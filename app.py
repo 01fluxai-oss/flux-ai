@@ -442,25 +442,27 @@ def telegram_webhook():
         send_message(chat_id, today_top_3_message(), reply_markup=main_menu())
         return "OK"
 
-    if text == "/pro":
+        if text == "/pro":
         try:
-            url = create_checkout_session(user_id)
-
             send_message(
                 chat_id,
                 pro_message(),
-                reply_markup={
-                    "inline_keyboard": [
-                        [{"text": "💳 Купить FLUX PRO", "url": url}]
-                    ]
-                },
+                reply_markup=main_menu(),
+            )
+
+            send_stars_invoice(
+                bot_token=BOT_TOKEN,
+                chat_id=chat_id,
+                user_id=user_id,
+                stars_price=500,
             )
 
         except Exception as e:
             print("PRO_PAYMENT_ERROR:", e, flush=True)
             send_message(
                 chat_id,
-                "⚠️ Не получилось открыть оплату. Попробуйте позже.",
+                "⚠️ Не получилось открыть оплату Telegram Stars.\n\n"
+                "Попробуйте ещё раз немного позже.",
                 reply_markup=main_menu(),
             )
 
