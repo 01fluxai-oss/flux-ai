@@ -431,8 +431,8 @@ def telegram_webhook():
         send_message(chat_id, profile_message(user_id), reply_markup=main_menu())
         return "OK"
 
-        if text == "/admin":
-        if user_id != ADMIN_TELEGRAM_ID:
+    if text == "/admin":
+    if user_id != ADMIN_TELEGRAM_ID:
             send_message(
                 chat_id,
                 "⛔ Доступ запрещён.",
