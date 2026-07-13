@@ -393,7 +393,60 @@ def telegram_webhook():
     if not message:
         return "OK"
 
-    
+        successful_payment = message.get("successful_payment")
+
+    if successful_payment:
+        user = message.get("from", {})
+        chat = message.get("chat", {})
+
+        user_id = user.get("id")
+        chat_id = chat.get("id")
+
+        invoice_payload = successful_payment.get("invoice_payload", "")
+        currency = successful_payment.get("currency", "")
+        total_amount = successful_payment.get("total_amount", 0)
+
+        telegram_charge_id = successful_payment.get(
+            "telegram_payment_charge_id",
+            "",
+        )
+
+        if (
+            user_id
+            and invoice_payload.startswith("flux_pro_30_days:")
+            and currency == "XTR"
+            and int(total_amount) == 500
+        ):
+            add_user(user)
+            activate_pro(user_id, days=30)
+
+            save_payment(
+                user_id,
+                provider="telegram_stars",
+                amount=total_amount,
+                currency="XTR",
+                status="paid",
+            )
+
+            print(
+                "STARS_PAYMENT_SUCCESS:",
+                user_id,
+                total_amount,
+                telegram_charge_id,
+                flush=True,
+            )
+
+            send_message(
+                chat_id,
+                "🎉 FLUX AI PRO активирован!\n\n"
+                "💎 Статус: PRO\n"
+                "📅 Срок: 30 дней\n"
+                "✅ Безлимитный анализ доступен.\n\n"
+                "Спасибо за поддержку FLUX AI! 🚀",
+                reply_markup=main_menu(),
+            )
+
+        return "OK"
 
     if text == "⚽ Анализ матча":
         send_message(
