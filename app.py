@@ -448,6 +448,30 @@ def telegram_webhook():
 
         return "OK"
 
+        chat = message.get("chat", {})
+        user = message.get("from", {})
+
+        chat_id = chat.get("id")
+        user_id = user.get("id")
+        text = message.get("text", "").strip()
+
+    print("==========", flush=True)
+    print("TEXT:", repr(text), flush=True)
+
+    if not chat_id:
+        return "OK"
+
+    if user_id:
+        add_user(user)
+
+    if not text:
+        send_message(
+            chat_id,
+            help_message(),
+            reply_markup=main_menu(),
+        )
+        return "OK"
+
     if text == "⚽ Анализ матча":
         send_message(
             chat_id,
