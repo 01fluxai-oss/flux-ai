@@ -358,7 +358,35 @@ def health():
 def telegram_webhook():
     data = request.get_json(force=True)
 
-    if not data:
+        if not data:
+        return "OK"
+
+
+    pre_checkout_query = data.get("pre_checkout_query")
+
+    if pre_checkout_query:
+        query_id = pre_checkout_query.get("id")
+        invoice_payload = pre_checkout_query.get("invoice_payload", "")
+
+        is_valid = invoice_payload.startswith("flux_pro_30_days:")
+
+        answer_payload = {
+            "pre_checkout_query_id": query_id,
+            "ok": is_valid,
+        }
+
+        if not is_valid:
+            answer_payload["error_message"] = (
+                "Не удалось проверить платёж. Попробуйте ещё раз."
+            )
+
+        response = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery",
+            json=answer_payload,
+            timeout=20,
+        )
+
+        print("PRE_CHECKOUT:", response.text, flush=True)
         return "OK"
 
     message = data.get("message", {})
@@ -366,25 +394,7 @@ def telegram_webhook():
     if not message:
         return "OK"
 
-    chat = message.get("chat", {})
-    user = message.get("from", {})
-
-    chat_id = chat.get("id")
-    user_id = user.get("id")
-    text = message.get("text", "").strip()
-
-    print("==========", flush=True)
-    print("TEXT:", repr(text), flush=True)
-
-    if not chat_id:
-        return "OK"
-
-    if user_id:
-        add_user(user)
-
-    if not text:
-        send_message(chat_id, help_message(), reply_markup=main_menu())
-        return "OK"
+    
 
     if text == "⚽ Анализ матча":
         send_message(
