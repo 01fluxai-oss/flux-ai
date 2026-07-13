@@ -442,7 +442,7 @@ def telegram_webhook():
         send_message(chat_id, today_top_3_message(), reply_markup=main_menu())
         return "OK"
 
-        if text == "/pro":
+     if text == "/pro":
         try:
             send_message(
                 chat_id,
