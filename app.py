@@ -393,7 +393,7 @@ def telegram_webhook():
     if not message:
         return "OK"
 
-        successful_payment = message.get("successful_payment")
+    successful_payment = message.get("successful_payment")
 
     if successful_payment:
         user = message.get("from", {})
@@ -447,13 +447,16 @@ def telegram_webhook():
             )
 
         return "OK"
-
+ 
         chat = message.get("chat", {})
         user = message.get("from", {})
 
         chat_id = chat.get("id")
         user_id = user.get("id")
         text = message.get("text", "").strip()
+
+    
+        
 
     print("==========", flush=True)
     print("TEXT:", repr(text), flush=True)
