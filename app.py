@@ -147,6 +147,18 @@ def status_message():
         "Статус: Online"
     )
 
+def admin_panel_message():
+    stats = get_admin_stats()
+
+    return (
+        "🔐 FLUX AI ADMIN\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👥 Всего пользователей: {stats['total_users']}\n"
+        f"💎 Активных PRO: {stats['active_pro']}\n"
+        f"🧾 Всего оплат: {stats['total_payments']}\n\n"
+        "📊 Статистика обновляется автоматически."
+    )
+
 
 def profile_message(user_id):
     user = get_user(user_id)
