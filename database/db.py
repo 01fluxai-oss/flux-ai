@@ -216,5 +216,32 @@ def free_limit_message():
         "Нажмите кнопку 💎 FLUX PRO в меню."
     )
 
+def get_admin_stats():
+    now = datetime.utcnow().isoformat()
 
+    total_users = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM users
+    """).fetchone()["count"]
+
+    active_pro = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM users
+        WHERE plan='PRO'
+        AND pro_until IS NOT NULL
+        AND pro_until > ?
+    """, (now,)).fetchone()["count"]
+
+    total_payments = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM payments
+        WHERE status='paid'
+    """).fetchone()["count"]
+
+    return {
+        "total_users": total_users,
+        "active_pro": active_pro,
+        "total_payments": total_payments,
+    }
+    
 init_db()
