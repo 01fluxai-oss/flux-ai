@@ -17,7 +17,7 @@ from database.db import (
     free_limit_message,
 )
 
-from payments.stripe import create_checkout_session
+from payments.stars import send_stars_invoice
 
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
