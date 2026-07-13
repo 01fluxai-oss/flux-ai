@@ -358,9 +358,8 @@ def health():
 def telegram_webhook():
     data = request.get_json(force=True)
 
-        if not data:
+    if not data:
         return "OK"
-
 
     pre_checkout_query = data.get("pre_checkout_query")
 
