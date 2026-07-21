@@ -11,19 +11,23 @@ from database.db import (
     get_admin_stats,
     get_today_usage,
     get_user,
+    get_user_language,
     increase_today_usage,
     is_pro,
     save_payment,
     save_prediction,
+    set_user_language,
 )
 from payments.stars import send_stars_invoice
 
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
+
 PUBLIC_URL = os.environ.get(
     "PUBLIC_URL",
     "https://flux-ai-8p34.onrender.com",
-)
+).rstrip("/")
+
 ADMIN_TELEGRAM_ID = int(
     os.environ.get("ADMIN_TELEGRAM_ID", "0")
 )
@@ -39,7 +43,10 @@ app = Flask(__name__)
 
 
 def telegram_api(method, payload):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{BOT_TOKEN}/{method}"
+    )
 
     response = requests.post(
         url,
@@ -47,7 +54,13 @@ def telegram_api(method, payload):
         timeout=20,
     )
 
-    result = response.json()
+    try:
+        result = response.json()
+    except ValueError as error:
+        raise RuntimeError(
+            f"Telegram returned invalid JSON: "
+            f"{response.text[:500]}"
+        ) from error
 
     if not response.ok or not result.get("ok"):
         raise RuntimeError(
@@ -57,7 +70,11 @@ def telegram_api(method, payload):
     return result
 
 
-def send_message(chat_id, text, reply_markup=None):
+def send_message(
+    chat_id,
+    text,
+    reply_markup=None,
+):
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -67,11 +84,40 @@ def send_message(chat_id, text, reply_markup=None):
         payload["reply_markup"] = reply_markup
 
     try:
-        return telegram_api("sendMessage", payload)
+        return telegram_api(
+            "sendMessage",
+            payload,
+        )
 
     except Exception as error:
         print(
             "SEND_MESSAGE_ERROR:",
+            repr(error),
+            flush=True,
+        )
+        return None
+
+
+def answer_callback_query(
+    callback_query_id,
+    text=None,
+):
+    payload = {
+        "callback_query_id": callback_query_id,
+    }
+
+    if text:
+        payload["text"] = text
+
+    try:
+        return telegram_api(
+            "answerCallbackQuery",
+            payload,
+        )
+
+    except Exception as error:
+        print(
+            "ANSWER_CALLBACK_ERROR:",
             repr(error),
             flush=True,
         )
@@ -97,16 +143,66 @@ def answer_pre_checkout_query(
     )
 
 
-def main_menu():
+def language_keyboard():
     return {
-        "keyboard": [
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🇺🇸 English",
+                    "callback_data": "lang_en",
+                },
+                {
+                    "text": "🇷🇺 Русский",
+                    "callback_data": "lang_ru",
+                },
+            ]
+        ]
+    }
+
+
+def main_menu(language="ru"):
+    if language == "en":
+        keyboard = [
+            ["⚽ Analyze Match"],
+            [
+                "🏆 Top 3 Today",
+                "🌍 World Cup 2026",
+            ],
+            ["📈 Results"],
+            [
+                "🏆 Channel",
+                "💎 FLUX PRO",
+            ],
+            ["👤 My Profile"],
+            [
+                "ℹ️ About",
+                "📊 Status",
+            ],
+            ["🌐 Language"],
+        ]
+
+    else:
+        keyboard = [
             ["⚽ Анализ матча"],
-            ["🏆 ТОП-3 дня", "🌍 ЧМ-2026"],
+            [
+                "🏆 ТОП-3 дня",
+                "🌍 ЧМ-2026",
+            ],
             ["📈 Результаты"],
-            ["🏆 Канал", "💎 FLUX PRO"],
+            [
+                "🏆 Канал",
+                "💎 FLUX PRO",
+            ],
             ["👤 Мой профиль"],
-            ["ℹ️ О проекте", "📊 Статус"],
-        ],
+            [
+                "ℹ️ О проекте",
+                "📊 Статус",
+            ],
+            ["🌐 Язык"],
+        ]
+
+    return {
+        "keyboard": keyboard,
         "resize_keyboard": True,
         "one_time_keyboard": False,
     }
@@ -114,7 +210,8 @@ def main_menu():
 
 def normalize_text(text):
     return (
-        text.replace("—", "-")
+        str(text)
+        .replace("—", "-")
         .replace("–", "-")
         .replace("−", "-")
         .strip()
@@ -126,12 +223,12 @@ def detect_match(line):
 
     separators = [
         " - ",
-        "-",
         " vs ",
         " VS ",
         " Vs ",
         " v ",
         " V ",
+        "-",
     ]
 
     for separator in separators:
@@ -155,21 +252,39 @@ def detect_match(line):
 def detect_matches(text):
     matches = []
 
-    for line in text.splitlines():
-        team1, team2 = detect_match(line.strip())
+    for line in str(text).splitlines():
+        team1, team2 = detect_match(
+            line.strip()
+        )
 
         if team1 and team2:
-            matches.append((team1, team2))
+            matches.append(
+                (team1, team2)
+            )
 
     return matches
 
 
-def start_message():
+def start_message(language="ru"):
+    if language == "en":
+        return (
+            "👋 Welcome! I am FLUX AI Sports PRO v3.0\n\n"
+            "⚽ Match analysis\n"
+            "🏆 Top 3 of the day\n"
+            "🌍 World Cup analysis\n"
+            "📈 Results\n"
+            "💎 FLUX PRO\n\n"
+            "FREE: 2 analyses per day\n"
+            "PRO: unlimited\n\n"
+            "Send a match:\n"
+            "Real Madrid - Barcelona"
+        )
+
     return (
         "👋 Привет! Я FLUX AI Sports PRO v3.0\n\n"
         "⚽ Анализ матчей\n"
         "🏆 ТОП-3 дня\n"
-        "🌍 ЧМ-2026\n"
+        "🌍 Анализ матчей ЧМ\n"
         "📈 Результаты\n"
         "💎 FLUX PRO\n\n"
         "FREE: 2 анализа в день\n"
@@ -179,26 +294,60 @@ def start_message():
     )
 
 
-def help_message():
+def help_message(language="ru"):
+    if language == "en":
+        return (
+            "⚽ Send a match in this format:\n\n"
+            "Real Madrid - Barcelona\n"
+            "Brazil - Norway\n"
+            "Portugal - Spain\n\n"
+            "You can send several matches, "
+            "one per line."
+        )
+
     return (
         "⚽ Напиши матч в формате:\n\n"
         "Real Madrid - Barcelona\n"
         "Brazil - Norway\n"
         "Portugal - Spain\n\n"
-        "Можно отправить несколько матчей списком."
+        "Можно отправить несколько "
+        "матчей списком."
     )
 
 
-def about_message():
+def about_message(language="ru"):
+    if language == "en":
+        return (
+            "ℹ️ FLUX AI is an AI-powered "
+            "football analysis bot.\n\n"
+            "It evaluates team form, "
+            "probabilities, totals, "
+            "double chance and model insights.\n\n"
+            "Predictions are informational "
+            "and do not guarantee results."
+        )
+
     return (
-        "ℹ️ FLUX AI — AI-бот для анализа футбольных матчей.\n\n"
-        "Бот оценивает форму команд, вероятности, тоталы, "
-        "двойной шанс и лучший прогноз.\n\n"
-        "Прогноз не является гарантией результата."
+        "ℹ️ FLUX AI — AI-бот "
+        "для анализа футбольных матчей.\n\n"
+        "Бот оценивает форму команд, "
+        "вероятности, тоталы, "
+        "двойной шанс и выводы модели.\n\n"
+        "Прогноз не является "
+        "гарантией результата."
     )
 
 
-def status_message():
+def status_message(language="ru"):
+    if language == "en":
+        return (
+            "✅ FLUX AI Sports is running.\n\n"
+            "Version: PRO v3.0\n"
+            "Mode: Public Beta\n"
+            f"Channel: {CHANNEL_USERNAME}\n"
+            "Status: Online"
+        )
+
     return (
         "✅ FLUX AI Sports работает.\n\n"
         "Версия: PRO v3.0\n"
@@ -208,8 +357,21 @@ def status_message():
     )
 
 
-def admin_panel_message():
+def admin_panel_message(language="ru"):
     stats = get_admin_stats()
+
+    if language == "en":
+        return (
+            "🔐 FLUX AI ADMIN\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👥 Total users: "
+            f"{stats['total_users']}\n"
+            f"💎 Active PRO: "
+            f"{stats['active_pro']}\n"
+            f"🧾 Total payments: "
+            f"{stats['total_payments']}\n\n"
+            "📊 Statistics update automatically."
+        )
 
     return (
         "🔐 FLUX AI ADMIN\n\n"
@@ -224,26 +386,69 @@ def admin_panel_message():
     )
 
 
-def profile_message(user_id):
+def profile_message(
+    user_id,
+    language="ru",
+):
     user = get_user(user_id)
 
     if not user:
-        return "👤 Профиль не найден. Нажми /start."
+        if language == "en":
+            return (
+                "👤 Profile not found. "
+                "Press /start."
+            )
+
+        return (
+            "👤 Профиль не найден. "
+            "Нажми /start."
+        )
 
     pro_active = is_pro(user_id)
-    pro_status = (
-        "✅ Активен"
-        if pro_active
-        else "❌ Не активен"
-    )
+
+    if language == "en":
+        pro_status = (
+            "✅ Active"
+            if pro_active
+            else "❌ Inactive"
+        )
+    else:
+        pro_status = (
+            "✅ Активен"
+            if pro_active
+            else "❌ Не активен"
+        )
 
     usage = get_today_usage(user_id)
 
     if pro_active:
-        limit_text = "Безлимит"
-    else:
         limit_text = (
-            f"{usage}/{FREE_DAILY_LIMIT} сегодня"
+            "Unlimited"
+            if language == "en"
+            else "Безлимит"
+        )
+    else:
+        if language == "en":
+            limit_text = (
+                f"{usage}/"
+                f"{FREE_DAILY_LIMIT} today"
+            )
+        else:
+            limit_text = (
+                f"{usage}/"
+                f"{FREE_DAILY_LIMIT} сегодня"
+            )
+
+    if language == "en":
+        return (
+            "👤 MY PROFILE\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"🆔 ID: {user_id}\n\n"
+            f"💎 FLUX PRO: {pro_status}\n\n"
+            "📊 Statistics:\n"
+            f"• Analyses today: {limit_text}\n"
+            "• Winning predictions: coming soon\n\n"
+            "🚀 FLUX AI v3.0"
         )
 
     return (
@@ -254,120 +459,157 @@ def profile_message(user_id):
         "📊 Статистика:\n"
         f"• Анализы сегодня: {limit_text}\n"
         "• Победных прогнозов: скоро\n\n"
-        "🚀 FLUX AI v3.0\n\n"
-        "Спасибо, что пользуетесь FLUX AI ❤️"
+        "🚀 FLUX AI v3.0"
     )
 
+def channel_message(language="ru"):
+    if language == "en":
+        return (
+            "🏆 FLUX AI DAILY\n\n"
+            "Official FLUX AI channel.\n\n"
+            "⚽ Daily Top 3 predictions\n"
+            "📊 AI match analysis\n"
+            "💎 FLUX PRO news\n\n"
+            f"📢 Subscribe: {CHANNEL_URL}"
+        )
 
-def channel_message():
     return (
         "🏆 FLUX AI DAILY\n\n"
         "Официальный канал FLUX AI.\n\n"
-        "Там публикуются:\n"
         "⚽ ТОП-3 прогнозов дня\n"
-        "🌍 Прогнозы ЧМ-2026\n"
-        "📊 AI-анализ\n"
+        "📊 AI-анализ матчей\n"
         "💎 Новости FLUX PRO\n\n"
         f"📢 Подписаться: {CHANNEL_URL}"
     )
 
 
-def results_message():
+def results_message(language="ru"):
+    if language == "en":
+        return (
+            "📈 FLUX AI Results\n\n"
+            "Public result tracking "
+            "is being prepared.\n\n"
+            "Predictions are informational "
+            "and do not guarantee results."
+        )
+
     return (
         "📈 FLUX AI Results\n\n"
-        "Статистика тестовой версии:\n\n"
-        "✅ Всего прогнозов: 24\n"
-        "🎯 Успешных: 17\n"
-        "❌ Не зашло: 7\n\n"
-        "📊 Точность: 70.8%\n\n"
-        "Лучший рынок:\n"
-        "⚽ ТБ 2.5\n\n"
-        "Скоро здесь будет реальная статистика "
-        "всех прогнозов FLUX AI."
-    )
-
-
-def worldcup_message():
-    return (
-        "🌍 FLUX AI | ЧМ-2026 🏆\n\n"
-        "Ближайшие прогнозы:\n\n"
-        "🇧🇷 Brazil — Norway\n"
-        "🔥 ТБ 2.5 — 74%\n"
-        "🎯 Проход Brazil — 72%\n"
-        "⚠️ Риск: Средний\n\n"
-        "🏴 England — Mexico\n"
-        "🔥 ТМ 3.5 — 78%\n"
-        "🎯 1X / осторожный матч\n"
-        "⚠️ Риск: Средний\n\n"
-        "🇵🇹 Portugal — Spain\n"
-        "🔥 Обе забьют — Да — 69%\n"
-        "🎯 ТБ 1.5 — 82%\n\n"
-        f"📢 Канал: {CHANNEL_URL}\n\n"
-        "Прогноз не является гарантией результата."
-    )
-
-
-def today_top_3_message():
-    return (
-        "🏆 FLUX AI DAILY\n\n"
-        "ТОП-3 прогнозов на сегодня\n\n"
-        "🥇 Manchester City — Real Madrid\n"
-        "🔥 Прогноз: ТБ 2.5 — 82%\n"
-        "🎯 Уверенность: 8.2/10\n"
-        "⚠️ Риск: Средний\n\n"
-        "🥈 Real Madrid — Paris Saint-Germain\n"
-        "🔥 Прогноз: ТБ 2.5 — 82%\n"
-        "🎯 Уверенность: 7.8/10\n"
-        "⚠️ Риск: Средний\n\n"
-        "🥉 Barcelona — Bayern Munich\n"
-        "🔥 Прогноз: ТБ 2.5 — 77%\n"
-        "🎯 Уверенность: 7.5/10\n"
-        "⚠️ Риск: Средний\n\n"
-        "Важно: прогноз не является "
+        "Публичная статистика результатов "
+        "готовится.\n\n"
+        "Прогноз не является "
         "гарантией результата."
     )
 
 
-def pro_message():
+def worldcup_message(language="ru"):
+    if language == "en":
+        return (
+            "🌍 FLUX AI | World Cup\n\n"
+            "Send any match "
+            "to the analyzer:\n\n"
+            "Team 1 - Team 2\n\n"
+            "Predictions are informational "
+            "and do not guarantee results."
+        )
+
     return (
-        "💎 FLUX AI PRO\n\n"
-        "Что входит:\n\n"
-        "✅ Безлимитный AI-анализ матчей\n"
-        "✅ Расширенная статистика\n"
-        "✅ TOP-3 прогнозов дня\n"
-        "✅ Прогнозы ЧМ-2026\n"
-        "✅ Доступ к новым PRO-функциям\n\n"
-        f"Стоимость: ⭐{PRO_PRICE_STARS} / "
-        f"{PRO_DAYS} дней\n\n"
-        "👇 Нажми кнопку оплаты ниже:"
+        "🌍 FLUX AI | Чемпионат мира\n\n"
+        "Отправь любой матч "
+        "в анализатор:\n\n"
+        "Команда 1 - Команда 2\n\n"
+        "Прогноз не является "
+        "гарантией результата."
     )
 
 
-def payment_success_message():
+def today_top_3_message(language="ru"):
+    if language == "en":
+        return (
+            "🏆 FLUX AI DAILY\n\n"
+            "The current Top 3 "
+            "is published in our channel.\n\n"
+            f"📢 {CHANNEL_URL}"
+        )
+
+    return (
+        "🏆 FLUX AI DAILY\n\n"
+        "Актуальный ТОП-3 "
+        "публикуется в нашем канале.\n\n"
+        f"📢 {CHANNEL_URL}"
+    )
+
+
+def pro_message(language="ru"):
+    if language == "en":
+        return (
+            "💎 FLUX AI PRO\n\n"
+            "✅ Unlimited AI analysis\n"
+            "✅ Extended statistics\n"
+            "✅ Daily Top 3\n"
+            "✅ New PRO features\n\n"
+            f"Price: ⭐{PRO_PRICE_STARS} / "
+            f"{PRO_DAYS} days\n\n"
+            "👇 Use the payment invoice below."
+        )
+
+    return (
+        "💎 FLUX AI PRO\n\n"
+        "✅ Безлимитный AI-анализ\n"
+        "✅ Расширенная статистика\n"
+        "✅ ТОП-3 дня\n"
+        "✅ Новые PRO-функции\n\n"
+        f"Стоимость: ⭐{PRO_PRICE_STARS} / "
+        f"{PRO_DAYS} дней\n\n"
+        "👇 Используйте счёт оплаты ниже."
+    )
+
+
+def payment_success_message(language="ru"):
+    if language == "en":
+        return (
+            "🎉 FLUX AI PRO activated!\n\n"
+            "💎 Status: PRO\n"
+            f"📅 Period: {PRO_DAYS} days\n"
+            "✅ Unlimited analysis is available."
+        )
+
     return (
         "🎉 FLUX AI PRO активирован!\n\n"
         "💎 Статус: PRO\n"
         f"📅 Срок: {PRO_DAYS} дней\n"
-        "✅ Безлимитный анализ доступен.\n\n"
-        "Спасибо за поддержку FLUX AI! 🚀"
+        "✅ Безлимитный анализ доступен."
     )
 
 
-def analyze_match_text(text):
-    from engine.analyzer import analyze_and_format
+def analyze_match_text(
+    text,
+    language="ru",
+):
+    from engine.analyzer import (
+        analyze_and_format,
+    )
 
     matches = detect_matches(text)
 
     if not matches:
-        return help_message()
+        return help_message(language)
 
     if len(matches) == 1:
         team1, team2 = matches[0]
-        return analyze_and_format(team1, team2)
+
+        return analyze_and_format(
+            team1,
+            team2,
+            language,
+        )
 
     results = []
 
-    for index, (team1, team2) in enumerate(
+    for index, (
+        team1,
+        team2,
+    ) in enumerate(
         matches[:5],
         start=1,
     ):
@@ -375,7 +617,9 @@ def analyze_match_text(text):
             result = analyze_and_format(
                 team1,
                 team2,
+                language,
             )
+
             results.append(
                 f"#{index}\n{result}"
             )
@@ -387,76 +631,108 @@ def analyze_match_text(text):
                 flush=True,
             )
 
-            results.append(
-                f"#{index}\n"
-                f"⚠️ Не получилось: "
-                f"{team1} - {team2}"
-            )
+            if language == "en":
+                results.append(
+                    f"#{index}\n"
+                    f"⚠️ Could not analyze: "
+                    f"{team1} - {team2}"
+                )
+            else:
+                results.append(
+                    f"#{index}\n"
+                    f"⚠️ Не получилось: "
+                    f"{team1} - {team2}"
+                )
 
     return "\n\n".join(results)
 
 
-def handle_analysis(chat_id, user_id, text):
+def handle_analysis(
+    chat_id,
+    user_id,
+    text,
+    language="ru",
+):
     matches = detect_matches(text)
-
-    print(
-        "MATCHES:",
-        matches,
-        flush=True,
-    )
 
     if not matches:
         send_message(
             chat_id,
-            help_message(),
-            reply_markup=main_menu(),
+            help_message(language),
+            reply_markup=main_menu(language),
         )
         return
 
     if not is_pro(user_id):
         used = get_today_usage(user_id)
-        remaining = FREE_DAILY_LIMIT - used
+
+        remaining = (
+            FREE_DAILY_LIMIT - used
+        )
 
         if remaining <= 0:
             send_message(
                 chat_id,
-                free_limit_message(),
-                reply_markup=main_menu(),
+                free_limit_message(language),
+                reply_markup=main_menu(language),
             )
             return
 
         if len(matches) > remaining:
+            if language == "en":
+                message_text = (
+                    "🔒 Free analyses remaining "
+                    f"today: {remaining}\n\n"
+                    "Send fewer matches "
+                    "or activate FLUX PRO."
+                )
+            else:
+                message_text = (
+                    "🔒 У вас осталось бесплатных "
+                    f"анализов сегодня: {remaining}\n\n"
+                    "Отправьте меньше матчей "
+                    "или оформите FLUX PRO."
+                )
+
             send_message(
                 chat_id,
-                "🔒 У вас осталось бесплатных "
-                f"анализов сегодня: {remaining}\n\n"
-                "Отправьте меньше матчей или "
-                "оформите FLUX PRO.",
-                reply_markup=main_menu(),
+                message_text,
+                reply_markup=main_menu(language),
             )
             return
 
     if len(matches) > 1:
-        send_message(
-            chat_id,
+        analyzing_text = (
+            f"⏳ Analyzing "
+            f"{len(matches)} matches..."
+            if language == "en"
+            else
             f"⏳ Анализирую "
-            f"{len(matches)} матчей...",
-            reply_markup=main_menu(),
+            f"{len(matches)} матчей..."
         )
     else:
-        send_message(
-            chat_id,
-            "⏳ Анализирую матч...",
-            reply_markup=main_menu(),
+        analyzing_text = (
+            "⏳ Analyzing the match..."
+            if language == "en"
+            else "⏳ Анализирую матч..."
         )
 
+    send_message(
+        chat_id,
+        analyzing_text,
+        reply_markup=main_menu(language),
+    )
+
     try:
-        answer = analyze_match_text(text)
+        answer = analyze_match_text(
+            text,
+            language,
+        )
 
         send_message(
             chat_id,
             answer,
-            reply_markup=main_menu(),
+            reply_markup=main_menu(language),
         )
 
         for team1, team2 in matches:
@@ -467,7 +743,9 @@ def handle_analysis(chat_id, user_id, text):
             )
 
             if not is_pro(user_id):
-                increase_today_usage(user_id)
+                increase_today_usage(
+                    user_id
+                )
 
     except Exception as error:
         print(
@@ -476,26 +754,49 @@ def handle_analysis(chat_id, user_id, text):
             flush=True,
         )
 
+        if language == "en":
+            error_text = (
+                "⚠️ Could not complete "
+                "the analysis.\n\n"
+                "Try another match "
+                "or check the format:\n"
+                "Real Madrid - Barcelona"
+            )
+        else:
+            error_text = (
+                "⚠️ Не получилось "
+                "сделать анализ.\n\n"
+                "Попробуй другой матч "
+                "или проверь формат:\n"
+                "Real Madrid - Barcelona"
+            )
+
         send_message(
             chat_id,
-            "⚠️ Не получилось сделать анализ.\n\n"
-            "Попробуй другой матч или "
-            "проверь формат:\n"
-            "Real Madrid - Barcelona",
-            reply_markup=main_menu(),
+            error_text,
+            reply_markup=main_menu(language),
         )
 
 
-def parse_invoice_user_id(invoice_payload):
+def parse_invoice_user_id(
+    invoice_payload,
+):
     prefix = "flux_pro_30_days:"
 
-    if not invoice_payload.startswith(prefix):
+    invoice_payload = str(
+        invoice_payload
+    )
+
+    if not invoice_payload.startswith(
+        prefix
+    ):
         return None
 
-    raw_user_id = invoice_payload[len(prefix):]
-
     try:
-        return int(raw_user_id)
+        return int(
+            invoice_payload[len(prefix):]
+        )
+
     except (TypeError, ValueError):
         return None
 
@@ -503,13 +804,25 @@ def parse_invoice_user_id(invoice_payload):
 def process_pre_checkout_query(
     pre_checkout_query,
 ):
-    query_id = pre_checkout_query.get("id")
-    payer = pre_checkout_query.get("from", {})
-    payer_id = payer.get("id")
+    query_id = pre_checkout_query.get(
+        "id"
+    )
 
-    invoice_payload = pre_checkout_query.get(
-        "invoice_payload",
-        "",
+    payer_id = (
+        pre_checkout_query
+        .get("from", {})
+        .get("id")
+    )
+
+    language = get_user_language(
+        payer_id
+    )
+
+    invoice_payload = (
+        pre_checkout_query.get(
+            "invoice_payload",
+            "",
+        )
     )
 
     currency = pre_checkout_query.get(
@@ -522,8 +835,10 @@ def process_pre_checkout_query(
         0,
     )
 
-    payload_user_id = parse_invoice_user_id(
-        invoice_payload
+    payload_user_id = (
+        parse_invoice_user_id(
+            invoice_payload
+        )
     )
 
     is_valid = (
@@ -531,68 +846,64 @@ def process_pre_checkout_query(
         and payer_id
         and payload_user_id == payer_id
         and currency == "XTR"
-        and int(total_amount) == PRO_PRICE_STARS
+        and int(total_amount)
+        == PRO_PRICE_STARS
     )
 
-    try:
-        answer_pre_checkout_query(
-            query_id=query_id,
-            approved=is_valid,
-            error_message=(
-                None
-                if is_valid
-                else (
-                    "Не удалось проверить платёж. "
-                    "Создайте новый счёт."
-                )
-            ),
+    error_message = None
+
+    if not is_valid:
+        error_message = (
+            "Payment verification failed. "
+            "Please create a new invoice."
+            if language == "en"
+            else
+            "Не удалось проверить платёж. "
+            "Создайте новый счёт."
         )
 
-        print(
-            "PRE_CHECKOUT:",
-            {
-                "payer_id": payer_id,
-                "payload_user_id": payload_user_id,
-                "amount": total_amount,
-                "approved": is_valid,
-            },
-            flush=True,
-        )
-
-    except Exception as error:
-        print(
-            "PRE_CHECKOUT_ERROR:",
-            repr(error),
-            flush=True,
-        )
+    answer_pre_checkout_query(
+        query_id=query_id,
+        approved=is_valid,
+        error_message=error_message,
+    )
 
 
 def process_successful_payment(message):
-    payment = message.get("successful_payment", {})
+    payment = message.get(
+        "successful_payment",
+        {},
+    )
+
     user = message.get("from", {})
     chat = message.get("chat", {})
 
     user_id = user.get("id")
     chat_id = chat.get("id")
 
+    language = get_user_language(
+        user_id
+    )
+
     invoice_payload = payment.get(
         "invoice_payload",
         "",
     )
 
-    currency = payment.get("currency", "")
+    currency = payment.get(
+        "currency",
+        "",
+    )
+
     total_amount = payment.get(
         "total_amount",
         0,
     )
 
-    telegram_charge_id = payment.get(
-        "telegram_payment_charge_id",
-        "",
-    )
-
-    payload_user_id = parse_invoice_user_id(
-        invoice_payload
+    payload_user_id = (
+        parse_invoice_user_id(
+            invoice_payload
+        )
     )
 
     payment_is_valid = (
@@ -600,34 +911,29 @@ def process_successful_payment(message):
         and chat_id
         and payload_user_id == user_id
         and currency == "XTR"
-        and int(total_amount) == PRO_PRICE_STARS
+        and int(total_amount)
+        == PRO_PRICE_STARS
     )
 
     if not payment_is_valid:
-        print(
-            "INVALID_STARS_PAYMENT:",
-            {
-                "user_id": user_id,
-                "payload_user_id": payload_user_id,
-                "currency": currency,
-                "amount": total_amount,
-                "charge_id": telegram_charge_id,
-            },
-            flush=True,
+        error_text = (
+            "⚠️ Payment data "
+            "failed verification."
+            if language == "en"
+            else
+            "⚠️ Данные платежа "
+            "не прошли проверку."
         )
 
-        if chat_id:
-            send_message(
-                chat_id,
-                "⚠️ Платёж получен, но его данные "
-                "не прошли проверку.\n\n"
-                "Напишите в поддержку FLUX AI.",
-                reply_markup=main_menu(),
-            )
-
+        send_message(
+            chat_id,
+            error_text,
+            reply_markup=main_menu(language),
+        )
         return
 
     add_user(user)
+
     activate_pro(
         user_id,
         days=PRO_DAYS,
@@ -641,324 +947,84 @@ def process_successful_payment(message):
         status="paid",
     )
 
-    print(
-        "STARS_PAYMENT_SUCCESS:",
-        {
-            "user_id": user_id,
-            "amount": total_amount,
-            "charge_id": telegram_charge_id,
-        },
-        flush=True,
-    )
-
     send_message(
         chat_id,
-        payment_success_message(),
-        reply_markup=main_menu(),
+        payment_success_message(language),
+        reply_markup=main_menu(language),
     )
 
 
-@app.route("/")
-def home():
-    return "FLUX AI Sports PRO v3.0 is running!"
+def process_callback_query(
+    callback_query,
+):
+    callback_id = callback_query.get(
+        "id"
+    )
 
+    user = callback_query.get(
+        "from",
+        {},
+    )
 
-@app.route("/health")
-def health():
-    return "OK"
+    user_id = user.get("id")
 
+    chat_id = (
+        callback_query
+        .get("message", {})
+        .get("chat", {})
+        .get("id")
+    )
 
-@app.route(
-    f"/telegram/{BOT_TOKEN}",
-    methods=["POST"],
-)
-def telegram_webhook():
-    try:
-        data = request.get_json(
-            force=True,
-            silent=True,
-        )
+    data = callback_query.get(
+        "data",
+        "",
+    )
 
-        if not data:
-            return "OK", 200
-
-        pre_checkout_query = data.get(
-            "pre_checkout_query"
-        )
-
-        if pre_checkout_query:
-            process_pre_checkout_query(
-                pre_checkout_query
+    if not user_id or not chat_id:
+        if callback_id:
+            answer_callback_query(
+                callback_id
             )
-            return "OK", 200
+        return
 
-        message = data.get("message")
+    add_user(user)
 
-        if not message:
-            return "OK", 200
-
-        if message.get("successful_payment"):
-            process_successful_payment(message)
-            return "OK", 200
-
-        chat = message.get("chat", {})
-        user = message.get("from", {})
-
-        chat_id = chat.get("id")
-        user_id = user.get("id")
-
-        text = message.get("text") or ""
-        text = text.strip()
-
-        print(
-            "TELEGRAM_MESSAGE:",
-            {
-                "chat_id": chat_id,
-                "user_id": user_id,
-                "text": text,
-            },
-            flush=True,
-        )
-
-        if not chat_id:
-            return "OK", 200
-
-        if user_id:
-            add_user(user)
-
-        if not text:
-            send_message(
-                chat_id,
-                help_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "⚽ Анализ матча":
-            send_message(
-                chat_id,
-                "⚽ Напиши матч:\n\n"
-                "Real Madrid - Barcelona",
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        button_commands = {
-            "🏆 ТОП-3 дня": "/today",
-            "🌍 ЧМ-2026": "/worldcup",
-            "📈 Результаты": "/results",
-            "🏆 Канал": "/channel",
-            "💎 FLUX PRO": "/pro",
-            "👤 Мой профиль": "/profile",
-            "ℹ️ О проекте": "/about",
-            "📊 Статус": "/status",
-        }
-
-        text = button_commands.get(text, text)
-
- def language_keyboard() -> dict:
-    return {
-        "inline_keyboard": [
-            [
-                {
-                    "text": "🇺🇸 English",
-                    "callback_data": "lang_en"
-                },
-                {
-                    "text": "🇷🇺 Русский",
-                    "callback_data": "lang_ru"
-                }
-            ]
-        ]
-    }
-
-        if text in ["/help", "/analyze"]:
-            send_message(
-                chat_id,
-                help_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/about":
-            send_message(
-                chat_id,
-                about_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/status":
-            send_message(
-                chat_id,
-                status_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/profile":
-            send_message(
-                chat_id,
-                profile_message(user_id),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/admin":
-            if user_id != ADMIN_TELEGRAM_ID:
-                send_message(
-                    chat_id,
-                    "⛔ Доступ запрещён.",
-                    reply_markup=main_menu(),
-                )
-                return "OK", 200
-
-            send_message(
-                chat_id,
-                admin_panel_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/channel":
-            send_message(
-                chat_id,
-                channel_message(),
-                reply_markup={
-                    "inline_keyboard": [
-                        [
-                            {
-                                "text": "🏆 Открыть канал",
-                                "url": CHANNEL_URL,
-                            }
-                        ]
-                    ]
-                },
-            )
-            return "OK", 200
-
-        if text == "/worldcup":
-            send_message(
-                chat_id,
-                worldcup_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/results":
-            send_message(
-                chat_id,
-                results_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/today":
-            send_message(
-                chat_id,
-                "🏆 Собираю ТОП-3 "
-                "прогнозов дня...",
-                reply_markup=main_menu(),
-            )
-
-            send_message(
-                chat_id,
-                today_top_3_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
-
-        if text == "/pro":
-            try:
-                send_message(
-                    chat_id,
-                    pro_message(),
-                    reply_markup=main_menu(),
-                )
-
-                send_stars_invoice(
-                    bot_token=BOT_TOKEN,
-                    chat_id=chat_id,
-                    user_id=user_id,
-                    stars_price=PRO_PRICE_STARS,
-                )
-
-            except Exception as error:
-                print(
-                    "PRO_PAYMENT_ERROR:",
-                    repr(error),
-                    flush=True,
-                )
-
-                send_message(
-                    chat_id,
-                    "⚠️ Не получилось открыть "
-                    "оплату Telegram Stars.\n\n"
-                    "Попробуйте ещё раз немного позже.",
-                    reply_markup=main_menu(),
-                )
-
-            return "OK", 200
-
-        handle_analysis(
-            chat_id,
+    if data == "lang_en":
+        set_user_language(
             user_id,
-            text,
+            "en",
         )
 
-        return "OK", 200
-
-    except Exception as error:
-        print(
-            "TELEGRAM_WEBHOOK_ERROR:",
-            repr(error),
-            flush=True,
+        answer_callback_query(
+            callback_id,
+            "Language changed to English.",
         )
 
-        return "OK", 200
+        send_message(
+            chat_id,
+            start_message("en"),
+            reply_markup=main_menu("en"),
+        )
+        return
 
-
-def set_webhook():
-    webhook_url = (
-        f"{PUBLIC_URL}/telegram/{BOT_TOKEN}"
-    )
-
-    try:
-        result = telegram_api(
-            "setWebhook",
-            {
-                "url": webhook_url,
-                "drop_pending_updates": False,
-                "allowed_updates": [
-                    "message",
-                    "pre_checkout_query",
-                ],
-            },
+    if data == "lang_ru":
+        set_user_language(
+            user_id,
+            "ru",
         )
 
-        print(
-            "WEBHOOK_SET:",
-            result,
-            flush=True,
+        answer_callback_query(
+            callback_id,
+            "Язык изменён на русский.",
         )
 
-    except Exception as error:
-        print(
-            "WEBHOOK_SET_ERROR:",
-            repr(error),
-            flush=True,
+        send_message(
+            chat_id,
+            start_message("ru"),
+            reply_markup=main_menu("ru"),
         )
+        return
 
-
-if __name__ == "__main__":
-    Thread(
-        target=set_webhook,
-        daemon=True,
-    ).start()
-
-    app.run(
-        host="0.0.0.0",
-        port=int(
-            os.environ.get("PORT", "10000")
-        ),
+    answer_callback_query(
+        callback_id
     )
