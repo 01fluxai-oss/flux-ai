@@ -1028,3 +1028,436 @@ def process_callback_query(
     answer_callback_query(
         callback_id
     )
+
+@app.route("/")
+def home():
+    return (
+        "FLUX AI Sports PRO v3.0 "
+        "is running!"
+    )
+
+
+@app.route("/health")
+def health():
+    return "OK"
+
+
+@app.route(
+    f"/telegram/{BOT_TOKEN}",
+    methods=["POST"],
+)
+def telegram_webhook():
+    try:
+        data = request.get_json(
+            force=True,
+            silent=True,
+        )
+
+        if not data:
+            return "OK", 200
+
+        callback_query = data.get(
+            "callback_query"
+        )
+
+        if callback_query:
+            process_callback_query(
+                callback_query
+            )
+            return "OK", 200
+
+        pre_checkout_query = data.get(
+            "pre_checkout_query"
+        )
+
+        if pre_checkout_query:
+            process_pre_checkout_query(
+                pre_checkout_query
+            )
+            return "OK", 200
+
+        message = data.get("message")
+
+        if not message:
+            return "OK", 200
+
+        if message.get(
+            "successful_payment"
+        ):
+            process_successful_payment(
+                message
+            )
+            return "OK", 200
+
+        chat = message.get(
+            "chat",
+            {},
+        )
+
+        user = message.get(
+            "from",
+            {},
+        )
+
+        chat_id = chat.get("id")
+        user_id = user.get("id")
+
+        text = (
+            message.get("text")
+            or ""
+        ).strip()
+
+        if not chat_id:
+            return "OK", 200
+
+        if user_id:
+            add_user(user)
+
+        language = get_user_language(
+            user_id
+        )
+
+        if text == "/start":
+            send_message(
+                chat_id,
+                (
+                    "⚡ Welcome to Flux AI\n"
+                    "Choose your language.\n\n"
+                    "⚡ Добро пожаловать "
+                    "в Flux AI\n"
+                    "Выберите язык."
+                ),
+                reply_markup=(
+                    language_keyboard()
+                ),
+            )
+            return "OK", 200
+
+        if text in [
+            "/language",
+            "🌐 Language",
+            "🌐 Язык",
+        ]:
+            send_message(
+                chat_id,
+                (
+                    "Choose your language.\n\n"
+                    "Выберите язык."
+                ),
+                reply_markup=(
+                    language_keyboard()
+                ),
+            )
+            return "OK", 200
+
+        if not text:
+            send_message(
+                chat_id,
+                help_message(language),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text in [
+            "⚽ Анализ матча",
+            "⚽ Analyze Match",
+        ]:
+            if language == "en":
+                prompt = (
+                    "⚽ Send a match:\n\n"
+                    "Real Madrid - Barcelona"
+                )
+            else:
+                prompt = (
+                    "⚽ Напиши матч:\n\n"
+                    "Real Madrid - Barcelona"
+                )
+
+            send_message(
+                chat_id,
+                prompt,
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        button_commands = {
+            "🏆 ТОП-3 дня": "/today",
+            "🏆 Top 3 Today": "/today",
+            "🌍 ЧМ-2026": "/worldcup",
+            "🌍 World Cup 2026": "/worldcup",
+            "📈 Результаты": "/results",
+            "📈 Results": "/results",
+            "🏆 Канал": "/channel",
+            "🏆 Channel": "/channel",
+            "💎 FLUX PRO": "/pro",
+            "👤 Мой профиль": "/profile",
+            "👤 My Profile": "/profile",
+            "ℹ️ О проекте": "/about",
+            "ℹ️ About": "/about",
+            "📊 Статус": "/status",
+            "📊 Status": "/status",
+        }
+
+        text = button_commands.get(
+            text,
+            text,
+        )
+
+        if text in [
+            "/help",
+            "/analyze",
+        ]:
+            send_message(
+                chat_id,
+                help_message(language),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/about":
+            send_message(
+                chat_id,
+                about_message(language),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/status":
+            send_message(
+                chat_id,
+                status_message(language),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/profile":
+            send_message(
+                chat_id,
+                profile_message(
+                    user_id,
+                    language,
+                ),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/admin":
+            if (
+                user_id
+                != ADMIN_TELEGRAM_ID
+            ):
+                if language == "en":
+                    denied = (
+                        "⛔ Access denied."
+                    )
+                else:
+                    denied = (
+                        "⛔ Доступ запрещён."
+                    )
+
+                send_message(
+                    chat_id,
+                    denied,
+                    reply_markup=(
+                        main_menu(language)
+                    ),
+                )
+                return "OK", 200
+
+            send_message(
+                chat_id,
+                admin_panel_message(
+                    language
+                ),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/channel":
+            if language == "en":
+                button_text = (
+                    "🏆 Open channel"
+                )
+            else:
+                button_text = (
+                    "🏆 Открыть канал"
+                )
+
+            send_message(
+                chat_id,
+                channel_message(language),
+                reply_markup={
+                    "inline_keyboard": [
+                        [
+                            {
+                                "text": button_text,
+                                "url": CHANNEL_URL,
+                            }
+                        ]
+                    ]
+                },
+            )
+            return "OK", 200
+
+        if text == "/worldcup":
+            send_message(
+                chat_id,
+                worldcup_message(language),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/results":
+            send_message(
+                chat_id,
+                results_message(language),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/today":
+            send_message(
+                chat_id,
+                today_top_3_message(
+                    language
+                ),
+                reply_markup=(
+                    main_menu(language)
+                ),
+            )
+            return "OK", 200
+
+        if text == "/pro":
+            try:
+                send_message(
+                    chat_id,
+                    pro_message(language),
+                    reply_markup=(
+                        main_menu(language)
+                    ),
+                )
+
+                send_stars_invoice(
+                    bot_token=BOT_TOKEN,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    stars_price=(
+                        PRO_PRICE_STARS
+                    ),
+                    language=language,
+                )
+
+            except Exception as error:
+                print(
+                    "PRO_PAYMENT_ERROR:",
+                    repr(error),
+                    flush=True,
+                )
+
+                if language == "en":
+                    error_text = (
+                        "⚠️ Could not open "
+                        "Telegram Stars payment."
+                    )
+                else:
+                    error_text = (
+                        "⚠️ Не получилось открыть "
+                        "оплату Telegram Stars."
+                    )
+
+                send_message(
+                    chat_id,
+                    error_text,
+                    reply_markup=(
+                        main_menu(language)
+                    ),
+                )
+
+            return "OK", 200
+
+        handle_analysis(
+            chat_id,
+            user_id,
+            text,
+            language,
+        )
+
+        return "OK", 200
+
+    except Exception as error:
+        print(
+            "TELEGRAM_WEBHOOK_ERROR:",
+            repr(error),
+            flush=True,
+        )
+
+        return "OK", 200
+
+
+def set_webhook():
+    webhook_url = (
+        f"{PUBLIC_URL}/telegram/"
+        f"{BOT_TOKEN}"
+    )
+
+    try:
+        result = telegram_api(
+            "setWebhook",
+            {
+                "url": webhook_url,
+                "drop_pending_updates": False,
+                "allowed_updates": [
+                    "message",
+                    "callback_query",
+                    "pre_checkout_query",
+                ],
+            },
+        )
+
+        print(
+            "WEBHOOK_SET:",
+            result,
+            flush=True,
+        )
+
+    except Exception as error:
+        print(
+            "WEBHOOK_SET_ERROR:",
+            repr(error),
+            flush=True,
+        )
+
+
+if __name__ == "__main__":
+    Thread(
+        target=set_webhook,
+        daemon=True,
+    ).start()
+
+    app.run(
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                "10000",
+            )
+        ),
+    )
