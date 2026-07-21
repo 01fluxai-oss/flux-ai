@@ -1,13 +1,95 @@
 from providers.thesportsdb import get_match_data
 from engine.v3_engine import analyze_v3
 
+
 CHANNEL_URL = "https://t.me/FluxAIDaily"
 
 
+PICK_LABELS = {
+    "ru": {
+        "over_1_5": "ТБ 1.5",
+        "over_2_5": "ТБ 2.5",
+        "under_2_5": "ТМ 2.5",
+        "btts_yes": "Обе забьют — Да",
+        "btts_no": "Обе забьют — Нет",
+        "p1": "П1",
+        "p2": "П2",
+        "draw": "X",
+        "double_1x": "1X",
+        "double_x2": "X2",
+        "double_12": "12",
+    },
+    "en": {
+        "over_1_5": "Over 1.5 Goals",
+        "over_2_5": "Over 2.5 Goals",
+        "under_2_5": "Under 2.5 Goals",
+        "btts_yes": "Both Teams to Score — Yes",
+        "btts_no": "Both Teams to Score — No",
+        "p1": "Home Win",
+        "p2": "Away Win",
+        "draw": "Draw",
+        "double_1x": "Home or Draw (1X)",
+        "double_x2": "Draw or Away (X2)",
+        "double_12": "Either Team to Win (12)",
+    },
+}
+
+
+RISK_LABELS = {
+    "ru": {
+        "low": "Низкий",
+        "medium": "Средний",
+        "high": "Высокий",
+    },
+    "en": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+    },
+}
+
+
+def pick_label(code, language="ru"):
+    labels = PICK_LABELS.get(
+        language,
+        PICK_LABELS["ru"],
+    )
+
+    return labels.get(
+        code,
+        str(code),
+    )
+
+
+def risk_label(code, language="ru"):
+    labels = RISK_LABELS.get(
+        language,
+        RISK_LABELS["ru"],
+    )
+
+    return labels.get(
+        code,
+        str(code),
+    )
+
+
 def bar(value):
-    value = max(0, min(100, int(value)))
-    blocks = round(value / 10)
-    return "█" * blocks + "░" * (10 - blocks)
+    value = max(
+        0,
+        min(
+            100,
+            int(value),
+        ),
+    )
+
+    blocks = round(
+        value / 10
+    )
+
+    return (
+        "█" * blocks
+        + "░" * (10 - blocks)
+    )
 
 
 def form_bar(value):
@@ -15,10 +97,13 @@ def form_bar(value):
 
     if value >= 85:
         return "🟢🟢🟢🟢🟢"
+
     if value >= 75:
         return "🟢🟢🟢🟢🟡"
+
     if value >= 65:
         return "🟢🟢🟢🟡🔴"
+
     if value >= 55:
         return "🟢🟢🟡🔴🔴"
 
@@ -27,154 +112,362 @@ def form_bar(value):
 
 def strength_icon(value):
     value = int(value)
+
     if value >= 80:
         return "🟢"
+
     if value >= 65:
         return "🟡"
+
     return "🔴"
 
 
-def format_top_3(best_pick):
-    top_3 = best_pick.get("top_3", [])
+def format_top_3(
+    best_pick,
+    language="ru",
+):
+    top_3 = best_pick.get(
+        "top_3",
+        [],
+    )
 
     if not top_3:
-        return f"🥇 {best_pick.get('pick', '—')} — {best_pick.get('value', '—')}%"
+        code = best_pick.get(
+            "pick",
+            "—",
+        )
 
-    medals = ["🥇", "🥈", "🥉"]
+        value = best_pick.get(
+            "value",
+            "—",
+        )
+
+        return (
+            f"🥇 {pick_label(code, language)} "
+            f"— {value}%"
+        )
+
+    medals = [
+        "🥇",
+        "🥈",
+        "🥉",
+    ]
+
     lines = []
 
-    for index, item in enumerate(top_3[:3]):
-        name, value = item
-        lines.append(f"{medals[index]} {name} — {value}% {strength_icon(value)}")
+    for index, item in enumerate(
+        top_3[:3]
+    ):
+        code, value = item
+
+        lines.append(
+            f"{medals[index]} "
+            f"{pick_label(code, language)} "
+            f"— {value}% "
+            f"{strength_icon(value)}"
+        )
 
     return "\n".join(lines)
 
 
-def build_ai_comment(result, main_pick, main_value):
+def build_ai_comment(
+    result,
+    main_pick,
+    main_value,
+    language="ru",
+):
     team1 = result["team1"]
     team2 = result["team2"]
 
-    r1 = result["team1_rating"]
-    r2 = result["team2_rating"]
+    rating1 = result["team1_rating"]
+    rating2 = result["team2_rating"]
 
-    form1 = r1["form"]
-    form2 = r2["form"]
-    attack1 = r1["attack"]
-    attack2 = r2["attack"]
-    defense1 = r1["defense"]
-    defense2 = r2["defense"]
+    form1 = rating1["form"]
+    form2 = rating2["form"]
+
+    attack1 = rating1["attack"]
+    attack2 = rating2["attack"]
+
+    defense1 = rating1["defense"]
+    defense2 = rating2["defense"]
 
     totals = result["totals"]
-    over25 = totals["over_2_5"]
-    btts = totals["btts_yes"]
 
-    lines = []
-    lines.append("🧠 FLUX AI Coach")
-    lines.append("━━━━━━━━━━━━━━━━━━━━")
-    lines.append("")
-    lines.append("📈 Последняя форма")
-    lines.append("")
-    lines.append(f"{team1}: {form_bar(form1)}")
-    lines.append(f"{team2}: {form_bar(form2)}")
-    lines.append("")
-    lines.append("📊 Общая форма")
+    over_25 = totals["over_2_5"]
+    btts_yes = totals["btts_yes"]
+
+    lines = [
+        "🧠 FLUX AI Coach",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "",
+    ]
+
+    if language == "en":
+        lines.extend([
+            "📈 Recent Form",
+            "",
+            f"{team1}: {form_bar(form1)}",
+            f"{team2}: {form_bar(form2)}",
+            "",
+            "📊 Overall Form",
+        ])
+
+        if form1 > form2 + 5:
+            lines.append(
+                f"✅ {team1} is in better form."
+            )
+
+        elif form2 > form1 + 5:
+            lines.append(
+                f"✅ {team2} is in better form."
+            )
+
+        else:
+            lines.append(
+                "⚖️ The teams are in similar form."
+            )
+
+        lines.extend([
+            "",
+            "⚔️ Attack",
+        ])
+
+        if attack1 > attack2 + 5:
+            lines.append(
+                f"🔥 {team1}'s attack looks stronger."
+            )
+
+        elif attack2 > attack1 + 5:
+            lines.append(
+                f"🔥 {team2}'s attack looks stronger."
+            )
+
+        else:
+            lines.append(
+                "⚖️ Attacking potential is similar."
+            )
+
+        lines.extend([
+            "",
+            "🛡 Defense",
+        ])
+
+        if defense1 > defense2 + 5:
+            lines.append(
+                f"🧱 {team1}'s defense looks stronger."
+            )
+
+        elif defense2 > defense1 + 5:
+            lines.append(
+                f"🧱 {team2}'s defense looks stronger."
+            )
+
+        else:
+            lines.append(
+                "⚖️ Defensive strength is similar."
+            )
+
+        lines.append("")
+
+        if over_25 >= 70:
+            lines.append(
+                "⚽ The model expects a high-scoring game."
+            )
+
+        elif over_25 <= 40:
+            lines.append(
+                "⚽ The model expects a cautious game."
+            )
+
+        else:
+            lines.append(
+                "⚽ An open game is possible."
+            )
+
+        if btts_yes >= 65:
+            lines.append(
+                "🥅 There is a strong chance "
+                "both teams score."
+            )
+
+        lines.extend([
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "",
+            "⭐ Main Recommendation",
+            f"👉 {pick_label(main_pick, language)}",
+            f"🎯 Probability: {main_value}%",
+        ])
+
+        return "\n".join(lines)
+
+    lines.extend([
+        "📈 Последняя форма",
+        "",
+        f"{team1}: {form_bar(form1)}",
+        f"{team2}: {form_bar(form2)}",
+        "",
+        "📊 Общая форма",
+    ])
 
     if form1 > form2 + 5:
-        lines.append(f"✅ {team1} находится в лучшей форме.")
-    elif form2 > form1 + 5:
-        lines.append(f"✅ {team2} находится в лучшей форме.")
-    else:
-        lines.append("⚖️ Команды находятся примерно в одинаковой форме.")
+        lines.append(
+            f"✅ {team1} находится в лучшей форме."
+        )
 
-    lines.append("")
-    lines.append("⚔️ Атака")
+    elif form2 > form1 + 5:
+        lines.append(
+            f"✅ {team2} находится в лучшей форме."
+        )
+
+    else:
+        lines.append(
+            "⚖️ Команды находятся примерно "
+            "в одинаковой форме."
+        )
+
+    lines.extend([
+        "",
+        "⚔️ Атака",
+    ])
 
     if attack1 > attack2 + 5:
-        lines.append(f"🔥 Атака {team1} выглядит опаснее.")
-    elif attack2 > attack1 + 5:
-        lines.append(f"🔥 Атака {team2} выглядит опаснее.")
-    else:
-        lines.append("⚖️ Атакующий потенциал примерно одинаковый.")
+        lines.append(
+            f"🔥 Атака {team1} выглядит опаснее."
+        )
 
-    lines.append("")
-    lines.append("🛡 Защита")
+    elif attack2 > attack1 + 5:
+        lines.append(
+            f"🔥 Атака {team2} выглядит опаснее."
+        )
+
+    else:
+        lines.append(
+            "⚖️ Атакующий потенциал "
+            "примерно одинаковый."
+        )
+
+    lines.extend([
+        "",
+        "🛡 Защита",
+    ])
 
     if defense1 > defense2 + 5:
-        lines.append(f"🧱 Защита {team1} выглядит надежнее.")
+        lines.append(
+            f"🧱 Защита {team1} выглядит надежнее."
+        )
+
     elif defense2 > defense1 + 5:
-        lines.append(f"🧱 Защита {team2} выглядит надежнее.")
+        lines.append(
+            f"🧱 Защита {team2} выглядит надежнее."
+        )
+
     else:
-        lines.append("⚖️ Защита команд примерно одинаковая.")
+        lines.append(
+            "⚖️ Защита команд примерно одинаковая."
+        )
 
     lines.append("")
 
-    if over25 >= 70:
-        lines.append("⚽ Модель ожидает большое количество голов.")
-    elif over25 <= 40:
-        lines.append("⚽ Ожидается осторожный матч.")
+    if over_25 >= 70:
+        lines.append(
+            "⚽ Модель ожидает большое "
+            "количество голов."
+        )
+
+    elif over_25 <= 40:
+        lines.append(
+            "⚽ Ожидается осторожный матч."
+        )
+
     else:
-        lines.append("⚽ Возможен открытый футбол.")
+        lines.append(
+            "⚽ Возможен открытый футбол."
+        )
 
-    if btts >= 65:
-        lines.append("🥅 Высока вероятность обмена голами.")
+    if btts_yes >= 65:
+        lines.append(
+            "🥅 Высока вероятность обмена голами."
+        )
 
-    lines.append("")
-    lines.append("━━━━━━━━━━━━━━━━━━━━")
-    lines.append("")
-    lines.append("⭐ Главная рекомендация")
-    lines.append(f"👉 {main_pick}")
-    lines.append(f"🎯 Вероятность: {main_value}%")
+    lines.extend([
+        "",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "",
+        "⭐ Главная рекомендация",
+        f"👉 {pick_label(main_pick, language)}",
+        f"🎯 Вероятность: {main_value}%",
+    ])
 
     return "\n".join(lines)
 
 
-def analyze_match_v2(team1, team2):
-    data = get_match_data(team1, team2)
+def analyze_match_v2(
+    team1,
+    team2,
+):
+    data = get_match_data(
+        team1,
+        team2,
+    )
 
     team1_form = data["team1_form"]
     team2_form = data["team2_form"]
 
-    v3 = analyze_v3(
-        team1=data.get("team1", team1),
-        team2=data.get("team2", team2),
+    result = analyze_v3(
+        team1=data.get(
+            "team1",
+            team1,
+        ),
+        team2=data.get(
+            "team2",
+            team2,
+        ),
         team1_form=team1_form,
         team2_form=team2_form,
     )
 
     return {
-        "team1": v3["team1"],
-        "team2": v3["team2"],
-        "source": data.get("source", "TheSportsDB + FLUX fallback"),
+        "team1": result["team1"],
+        "team2": result["team2"],
+        "source": data.get(
+            "source",
+            "TheSportsDB + FLUX fallback",
+        ),
         "team1_form": team1_form,
         "team2_form": team2_form,
-        "team1_rating": v3["team1_rating"],
-        "team2_rating": v3["team2_rating"],
-        "probabilities": v3["probabilities"],
-        "totals": v3["totals"],
-        "double_chance": v3.get("double_chance", {}),
-        "predicted_score": v3.get("predicted_score", {}),
-        "best_pick": v3["best_pick"],
-        "risk": v3["risk"],
-        "confidence": v3["confidence"],
-        "data_quality": v3["data_quality"],
+        "team1_rating": result["team1_rating"],
+        "team2_rating": result["team2_rating"],
+        "probabilities": result["probabilities"],
+        "totals": result["totals"],
+        "double_chance": result["double_chance"],
+        "predicted_score": result["predicted_score"],
+        "best_pick": result["best_pick"],
+        "risk": result["risk"],
+        "confidence": result["confidence"],
+        "data_quality": result["data_quality"],
     }
 
-
-def format_analysis(result):
+def format_analysis(
+    result,
+    language="ru",
+):
     team1 = result["team1"]
     team2 = result["team2"]
 
     probabilities = result["probabilities"]
     totals = result["totals"]
-    double_chance = result.get("double_chance", {})
+    double_chance = result["double_chance"]
 
-    score = result.get("predicted_score", {}).get("score", "—")
-    top_3 = result["best_pick"].get("top_3", [])
-    top_3_text = format_top_3(result["best_pick"])
+    score = result["predicted_score"].get(
+        "score",
+        "—",
+    )
 
-    confidence = int(result["confidence"])
-    if confidence <= 10:
-        confidence = confidence * 10
+    top_3 = result["best_pick"].get(
+        "top_3",
+        [],
+    )
 
     if top_3:
         main_pick = top_3[0][0]
@@ -183,22 +476,161 @@ def format_analysis(result):
         main_pick = result["best_pick"]["pick"]
         main_value = result["best_pick"]["value"]
 
-    ai_comment = build_ai_comment(result, main_pick, main_value)
+    confidence = int(
+        result["confidence"]
+    )
 
-    team1_rating = result["team1_rating"]["rating"]
-    team2_rating = result["team2_rating"]["rating"]
+    if confidence <= 10:
+        confidence *= 10
 
-    power_diff = team1_rating - team2_rating
+    team1_rating = result[
+        "team1_rating"
+    ]["rating"]
+
+    team2_rating = result[
+        "team2_rating"
+    ]["rating"]
+
+    power_diff = (
+        team1_rating
+        - team2_rating
+    )
 
     if power_diff > 0:
-        power_text = f"{team1} +{power_diff}"
-    elif power_diff < 0:
-        power_text = f"{team2} +{abs(power_diff)}"
-    else:
-        power_text = "Равный баланс"
+        power_text = (
+            f"{team1} +{power_diff}"
+        )
 
-    return f"""
-🏆 FLUX AI PRO
+    elif power_diff < 0:
+        power_text = (
+            f"{team2} +{abs(power_diff)}"
+        )
+
+    else:
+        power_text = (
+            "Equal balance"
+            if language == "en"
+            else "Равный баланс"
+        )
+
+    top_3_text = format_top_3(
+        result["best_pick"],
+        language,
+    )
+
+    ai_comment = build_ai_comment(
+        result,
+        main_pick,
+        main_value,
+        language,
+    )
+
+    main_pick_text = pick_label(
+        main_pick,
+        language,
+    )
+
+    risk_text = risk_label(
+        result["risk"],
+        language,
+    )
+
+    if language == "en":
+        return f"""🏆 FLUX AI PRO
+━━━━━━━━━━━━━━━━━━━━
+
+⚽ Match
+{team1} — {team2}
+
+━━━━━━━━━━━━━━━━━━━━
+
+⚡ FLUX Power Index
+
+{team1}
+{bar(team1_rating)} {team1_rating}/100
+
+{team2}
+{bar(team2_rating)} {team2_rating}/100
+
+Advantage:
+{power_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔥 FLUX Rating
+
+{team1}
+{bar(team1_rating)} {team1_rating}/100
+
+{team2}
+{bar(team2_rating)} {team2_rating}/100
+
+━━━━━━━━━━━━━━━━━━━━
+
+📊 Match Outcome
+
+Home {bar(probabilities["p1"])} {probabilities["p1"]}%
+Draw {bar(probabilities["draw"])} {probabilities["draw"]}%
+Away {bar(probabilities["p2"])} {probabilities["p2"]}%
+
+━━━━━━━━━━━━━━━━━━━━
+
+⭐ Main Prediction
+👉 {main_pick_text}
+
+🎯 Probability:
+{main_value}%
+
+🧠 AI Confidence:
+{bar(confidence)} {confidence}%
+
+━━━━━━━━━━━━━━━━━━━━
+
+🏆 TOP-3 Predictions
+{top_3_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+⚽ Goal Totals
+
+Over 1.5 — {totals.get("over_1_5", "—")}%
+Over 2.5 — {totals.get("over_2_5", "—")}%
+Over 3.5 — {totals.get("over_3_5", "—")}%
+
+🥅 Both Teams to Score:
+Yes — {totals.get("btts_yes", "—")}%
+No — {totals.get("btts_no", "—")}%
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔒 Double Chance
+
+1X — {double_chance.get("1X", "—")}%
+12 — {double_chance.get("12", "—")}%
+X2 — {double_chance.get("X2", "—")}%
+
+━━━━━━━━━━━━━━━━━━━━
+
+📊 Predicted Score:
+{score}
+
+⚠️ Risk Level:
+{risk_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+{ai_comment}
+
+━━━━━━━━━━━━━━━━━━━━
+
+📢 Daily Top 3 predictions:
+{CHANNEL_URL}
+
+Important:
+Predictions are informational and do not guarantee results.
+"""
+
+    return f"""🏆 FLUX AI PRO
 ━━━━━━━━━━━━━━━━━━━━
 
 ⚽ Матч
@@ -232,15 +664,13 @@ def format_analysis(result):
 📊 Исход
 
 П1 {bar(probabilities["p1"])} {probabilities["p1"]}%
-
 X  {bar(probabilities["draw"])} {probabilities["draw"]}%
-
 П2 {bar(probabilities["p2"])} {probabilities["p2"]}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
 ⭐ Главный прогноз
-👉 {main_pick}
+👉 {main_pick_text}
 
 🎯 Вероятность:
 {main_value}%
@@ -279,7 +709,7 @@ X2 — {double_chance.get("X2", "—")}%
 {score}
 
 ⚠️ Риск:
-{result["risk"]}
+{risk_text}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -295,18 +725,24 @@ X2 — {double_chance.get("X2", "—")}%
 """
 
 
-def build_message_text(result):
-    return format_analysis(result)
+def analyze_and_format(
+    team1,
+    team2,
+    language="ru",
+):
+    result = analyze_match_v2(
+        team1,
+        team2,
+    )
 
-
-def analyze_and_format(team1, team2):
-    result = analyze_match_v2(team1, team2)
-    return format_analysis(result)
+    return format_analysis(
+        result,
+        language,
+    )
 
 
 __all__ = [
     "analyze_match_v2",
     "format_analysis",
-    "build_message_text",
     "analyze_and_format",
 ]
