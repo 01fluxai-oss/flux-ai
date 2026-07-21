@@ -840,14 +840,21 @@ def build_form(
         + losses
     )
 
-    if (
-        played == 0
-        and team_name
+    fallback_available = (
+        team_name
         in FALLBACK_FORMS
-    ):
+    )
+
+    use_fallback = (
+        played < 5
+        and fallback_available
+    )
+
+    if use_fallback:
         print(
             "USING_FALLBACK_FORM:",
             team_name,
+            f"API_MATCHES={played}",
             flush=True,
         )
 
@@ -857,9 +864,33 @@ def build_form(
             ].copy()
         )
 
-        fallback["recent"] = []
+        fallback["recent"] = (
+            recent_matches[:5]
+        )
+
+        fallback["data_source"] = (
+            "fallback"
+        )
 
         return fallback
+
+    average_goals_for = (
+        round(
+            goals_for / played,
+            2,
+        )
+        if played
+        else 0
+    )
+
+    average_goals_against = (
+        round(
+            goals_against / played,
+            2,
+        )
+        if played
+        else 0
+    )
 
     return {
         "matches": played,
@@ -873,26 +904,16 @@ def build_form(
         "goals_for": goals_for,
         "goals_against": goals_against,
         "avg_goals_for": (
-            round(
-                goals_for / played,
-                2,
-            )
-            if played
-            else 0
+            average_goals_for
         ),
         "avg_goals_against": (
-            round(
-                goals_against / played,
-                2,
-            )
-            if played
-            else 0
+            average_goals_against
         ),
         "recent": (
             recent_matches[:5]
         ),
+        "data_source": "api",
     }
-
 
 def get_match_data(
     team1,
