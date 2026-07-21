@@ -756,13 +756,21 @@ def telegram_webhook():
 
         text = button_commands.get(text, text)
 
-        if text == "/start":
-            send_message(
-                chat_id,
-                start_message(),
-                reply_markup=main_menu(),
-            )
-            return "OK", 200
+ def language_keyboard() -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🇺🇸 English",
+                    "callback_data": "lang_en"
+                },
+                {
+                    "text": "🇷🇺 Русский",
+                    "callback_data": "lang_ru"
+                }
+            ]
+        ]
+    }
 
         if text in ["/help", "/analyze"]:
             send_message(
