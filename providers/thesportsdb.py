@@ -455,6 +455,17 @@ FALLBACK_FORMS = {
         "avg_goals_for": 2.5,
         "avg_goals_against": 0.9,
     },
+    "Liverpool": {
+    "matches": 10,
+    "points": 23,
+    "wins": 7,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 24,
+    "goals_against": 10,
+    "avg_goals_for": 2.4,
+    "avg_goals_against": 1.0,
+    },
     "Bayern Munich": {
         "matches": 10,
         "points": 22,
