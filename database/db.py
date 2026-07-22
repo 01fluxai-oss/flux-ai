@@ -1,8 +1,8 @@
 import os
 from datetime import datetime, timedelta, timezone
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 
 
 DATABASE_URL = os.environ["DATABASE_URL"]
