@@ -1273,48 +1273,51 @@ def telegram_webhook():
             )
             return "OK", 200
 
-                if text in [
-            "⚽ Анализ матча",
-            "⚽ Analyze Match",
+        if text in [
+            "⚽ Футбол",
+            "⚽ Football",
         ]:
-            sport_mode = USER_SPORT_MODE.get(
-                user_id,
-                "football",
-            )
+            USER_SPORT_MODE[user_id] = "football"
 
-            if sport_mode == "nba":
-                if language == "en":
-                    prompt = (
-                        "🏀 Send an NBA game:\n\n"
-                        "Lakers - Celtics\n"
-                        "Warriors - Knicks"
-                    )
-                else:
-                    prompt = (
-                        "🏀 Напиши матч NBA:\n\n"
-                        "Lakers - Celtics\n"
-                        "Warriors - Knicks"
-                    )
-            else:
-                if language == "en":
-                    prompt = (
-                        "⚽ Send a match:\n\n"
-                        "Real Madrid - Barcelona"
-                    )
-                else:
-                    prompt = (
-                        "⚽ Напиши матч:\n\n"
-                        "Real Madrid - Barcelona"
-                    )
+            message_text = (
+                "⚽ Football mode selected.\n\n"
+                "Send a match:\n"
+                "Real Madrid - Barcelona"
+                if language == "en"
+                else
+                "⚽ Выбран режим футбола.\n\n"
+                "Напиши матч:\n"
+                "Real Madrid - Barcelona"
+            )
 
             send_message(
                 chat_id,
-                prompt,
-                reply_markup=(
-                    main_menu(language)
-                ),
+                message_text,
+                reply_markup=main_menu(language),
             )
             return "OK", 200
+
+        if text == "🏀 NBA":
+            USER_SPORT_MODE[user_id] = "nba"
+
+            message_text = (
+                "🏀 NBA mode selected.\n\n"
+                "Send a game:\n"
+                "Lakers - Celtics\n\n"
+                "The first team is treated as the home team."
+                if language == "en"
+                else
+                "🏀 Выбран режим NBA.\n\n"
+                "Напиши матч:\n"
+                "Lakers - Celtics\n\n"
+                "Первая команда считается хозяином площадки."
+            )
+
+            send_message(
+                chat_id,
+                message_text,
+                reply_markup=main_menu(language),
+            )
             return "OK", 200
 
         button_commands = {
