@@ -574,16 +574,40 @@ def format_analysis(
         language,
     )
 
-    data_quality = int(
-        result.get(
-            "data_quality",
-            0,
-        )
+    raw_data_quality = int(
+    result.get(
+        "data_quality",
+        0,
+    )
+)
+
+data_source = result.get(
+    "source",
+    "FLUX AI",
+)
+
+fallback_count = (
+    data_source.count(
+        "FLUX fallback"
+    )
+)
+
+if fallback_count >= 2:
+    data_quality = min(
+        raw_data_quality,
+        55,
     )
 
-    data_source = result.get(
-        "source",
-        "FLUX AI",
+elif fallback_count == 1:
+    data_quality = min(
+        raw_data_quality,
+        70,
+    )
+
+else:
+    data_quality = min(
+        raw_data_quality,
+        100,
     )
 
     if data_quality >= 80:
