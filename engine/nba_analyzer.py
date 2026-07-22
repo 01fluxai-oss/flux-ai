@@ -57,10 +57,7 @@ PACE_LABELS = {
 }
 
 
-def progress_bar(
-    value,
-    length=10,
-):
+def progress_bar(value, length=10):
     value = max(
         0,
         min(
@@ -81,9 +78,7 @@ def progress_bar(
     )
 
 
-def probability_icon(
-    value,
-):
+def probability_icon(value):
     value = int(value)
 
     if value >= 75:
@@ -95,9 +90,7 @@ def probability_icon(
     return "🔴"
 
 
-def quality_icon(
-    value,
-):
+def quality_icon(value):
     value = int(value)
 
     if value >= 80:
@@ -109,9 +102,7 @@ def quality_icon(
     return "🔴"
 
 
-def recent_form_icons(
-    form,
-):
+def recent_form_icons(form):
     recent = form.get(
         "recent",
         [],
@@ -335,7 +326,7 @@ def build_nba_comment(
 
         return "\n".join(lines)
 
-      lines.append(
+    lines.append(
         "🧠 FLUX AI NBA Coach"
     )
     lines.append(
