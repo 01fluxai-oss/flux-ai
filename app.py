@@ -9,6 +9,7 @@ from database.db import (
     add_user,
     free_limit_message,
     get_admin_stats,
+    get_predictions,
     get_today_usage,
     get_user,
     get_user_language,
