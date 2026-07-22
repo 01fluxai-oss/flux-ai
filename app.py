@@ -41,6 +41,8 @@ PRO_DAYS = 30
 
 app = Flask(__name__)
 
+USER_SPORT_MODE = {}
+
 
 def telegram_api(method, payload):
     url = (
@@ -163,7 +165,13 @@ def language_keyboard():
 def main_menu(language="ru"):
     if language == "en":
         keyboard = [
-            ["⚽ Analyze Match"],
+            [
+                "⚽ Football",
+                "🏀 NBA",
+            ],
+            [
+                "⚽ Analyze Match",
+            ],
             [
                 "🏆 Top 3 Today",
                 "🌍 World Cup 2026",
@@ -183,7 +191,13 @@ def main_menu(language="ru"):
 
     else:
         keyboard = [
-            ["⚽ Анализ матча"],
+            [
+                "⚽ Футбол",
+                "🏀 NBA",
+            ],
+            [
+                "⚽ Анализ матча",
+            ],
             [
                 "🏆 ТОП-3 дня",
                 "🌍 ЧМ-2026",
