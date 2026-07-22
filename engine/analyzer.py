@@ -511,9 +511,15 @@ def format_analysis(
     if top_3:
         main_pick = top_3[0][0]
         main_value = top_3[0][1]
+
     else:
-        main_pick = result["best_pick"]["pick"]
-        main_value = result["best_pick"]["value"]
+        main_pick = result[
+            "best_pick"
+        ]["pick"]
+
+        main_value = result[
+            "best_pick"
+        ]["value"]
 
     confidence = int(
         result["confidence"]
@@ -575,40 +581,40 @@ def format_analysis(
     )
 
     raw_data_quality = int(
-    result.get(
-        "data_quality",
-        0,
-    )
-)
-
-data_source = result.get(
-    "source",
-    "FLUX AI",
-)
-
-fallback_count = (
-    data_source.count(
-        "FLUX fallback"
-    )
-)
-
-if fallback_count >= 2:
-    data_quality = min(
-        raw_data_quality,
-        55,
+        result.get(
+            "data_quality",
+            0,
+        )
     )
 
-elif fallback_count == 1:
-    data_quality = min(
-        raw_data_quality,
-        70,
+    data_source = result.get(
+        "source",
+        "FLUX AI",
     )
 
-else:
-    data_quality = min(
-        raw_data_quality,
-        100,
+    fallback_count = (
+        data_source.count(
+            "FLUX fallback"
+        )
     )
+
+    if fallback_count >= 2:
+        data_quality = min(
+            raw_data_quality,
+            55,
+        )
+
+    elif fallback_count == 1:
+        data_quality = min(
+            raw_data_quality,
+            70,
+        )
+
+    else:
+        data_quality = min(
+            raw_data_quality,
+            100,
+        )
 
     if data_quality >= 80:
         quality_icon = "🟢"
