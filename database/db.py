@@ -34,6 +34,7 @@ def init_db():
                         plan TEXT DEFAULT 'FREE',
                         pro_until TIMESTAMPTZ,
                         language TEXT DEFAULT 'ru',
+                        sport TEXT DEFAULT 'football',
                         created_at TIMESTAMPTZ
                     )
                 """)
@@ -78,6 +79,12 @@ def init_db():
                     TEXT DEFAULT 'ru'
                 """)
 
+                cursor.execute("""
+                    ALTER TABLE users
+                    ADD COLUMN IF NOT EXISTS sport
+                    TEXT DEFAULT 'football'
+                """)
+
     finally:
         connection.close()
 
@@ -102,6 +109,7 @@ def add_user(user):
                         username,
                         first_name,
                         language,
+                        sport,
                         created_at
                     )
                     VALUES (
@@ -109,6 +117,7 @@ def add_user(user):
                         %s,
                         %s,
                         'ru',
+                        'football',
                         %s
                     )
                     ON CONFLICT (telegram_id)
@@ -187,6 +196,72 @@ def get_user_language(user_id):
         return "ru"
 
     return language
+
+
+def set_user_sport(
+    user_id,
+    sport,
+):
+    if not user_id:
+        return
+
+    if sport not in {
+        "football",
+        "nba",
+    }:
+        sport = "football"
+
+    connection = get_connection()
+
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE users
+                    SET sport = %s
+                    WHERE telegram_id = %s
+                """, (
+                    sport,
+                    user_id,
+                ))
+
+    finally:
+        connection.close()
+
+
+def get_user_sport(user_id):
+    if not user_id:
+        return "football"
+
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT sport
+                FROM users
+                WHERE telegram_id = %s
+            """, (
+                user_id,
+            ))
+
+            row = cursor.fetchone()
+
+    finally:
+        connection.close()
+
+    if not row:
+        return "football"
+
+    sport = row.get("sport")
+
+    if sport not in {
+        "football",
+        "nba",
+    }:
+        return "football"
+
+    return sport
 
 
 def activate_pro(
@@ -466,10 +541,10 @@ def free_limit_message(
             "🔒 You have used all "
             "2 free analyses for today.\n\n"
             "Activate FLUX AI PRO and get:\n"
-            "✅ Unlimited match analysis\n"
+            "✅ Unlimited sports analysis\n"
+            "✅ Football and NBA analysis\n"
             "✅ Extended statistics\n"
             "✅ Daily Top 3 predictions\n"
-            "✅ World Cup analysis\n"
             "✅ New PRO features\n\n"
             "Press 💎 FLUX PRO in the menu."
         )
@@ -478,10 +553,10 @@ def free_limit_message(
         "🔒 Вы использовали все "
         "2 бесплатных анализа на сегодня.\n\n"
         "Оформите FLUX AI PRO и получите:\n"
-        "✅ Безлимитный анализ матчей\n"
+        "✅ Безлимитный анализ спорта\n"
+        "✅ Анализ футбола и NBA\n"
         "✅ Расширенную статистику\n"
         "✅ ТОП-3 прогнозов дня\n"
-        "✅ Анализ матчей ЧМ\n"
         "✅ Новые PRO-функции\n\n"
         "Нажмите кнопку 💎 FLUX PRO в меню."
     )
@@ -533,6 +608,3 @@ def get_admin_stats():
         "active_pro": active_pro,
         "total_payments": total_payments,
     }
-
-
-init_db()
