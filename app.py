@@ -836,7 +836,7 @@ def handle_analysis(
             reply_markup=main_menu(language),
         )
 
-                sport_mode = USER_SPORT_MODE.get(
+        sport_mode = USER_SPORT_MODE.get(
             user_id,
             "football",
         )
