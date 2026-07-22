@@ -813,7 +813,7 @@ def handle_analysis(
     )
 
     try:
-                sport_mode = USER_SPORT_MODE.get(
+        sport_mode = USER_SPORT_MODE.get(
             user_id,
             "football",
         )
@@ -823,6 +823,7 @@ def handle_analysis(
                 text,
                 language,
             )
+        
         else:
             answer = analyze_match_text(
                 text,
