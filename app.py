@@ -660,6 +660,81 @@ def analyze_match_text(
 
     return "\n\n".join(results)
 
+def analyze_nba_text(
+    text,
+    language="ru",
+):
+    from engine.nba_analyzer import (
+        analyze_and_format_nba,
+    )
+
+    matches = detect_matches(text)
+
+    if not matches:
+        if language == "en":
+            return (
+                "🏀 Send an NBA game:\n\n"
+                "Lakers - Celtics\n"
+                "Warriors - Knicks"
+            )
+
+        return (
+            "🏀 Напиши матч NBA:\n\n"
+            "Lakers - Celtics\n"
+            "Warriors - Knicks"
+        )
+
+    if len(matches) == 1:
+        team1, team2 = matches[0]
+
+        return analyze_and_format_nba(
+            team1,
+            team2,
+            language,
+        )
+
+    results = []
+
+    for index, (
+        team1,
+        team2,
+    ) in enumerate(
+        matches[:5],
+        start=1,
+    ):
+        try:
+            result = analyze_and_format_nba(
+                team1,
+                team2,
+                language,
+            )
+
+            results.append(
+                f"#{index}\n{result}"
+            )
+
+        except Exception as error:
+            print(
+                "MULTI_NBA_ANALYSIS_ERROR:",
+                repr(error),
+                flush=True,
+            )
+
+            if language == "en":
+                results.append(
+                    f"#{index}\n"
+                    f"⚠️ Could not analyze: "
+                    f"{team1} - {team2}"
+                )
+            else:
+                results.append(
+                    f"#{index}\n"
+                    f"⚠️ Не получилось: "
+                    f"{team1} - {team2}"
+                )
+
+    return "\n\n".join(results)
+
 
 def handle_analysis(
     chat_id,
@@ -738,10 +813,21 @@ def handle_analysis(
     )
 
     try:
-        answer = analyze_match_text(
-            text,
-            language,
+                sport_mode = USER_SPORT_MODE.get(
+            user_id,
+            "football",
         )
+
+        if sport_mode == "nba":
+            answer = analyze_nba_text(
+                text,
+                language,
+            )
+        else:
+            answer = analyze_match_text(
+                text,
+                language,
+            )
 
         send_message(
             chat_id,
@@ -750,8 +836,20 @@ def handle_analysis(
         )
 
         for team1, team2 in matches:
+                        sport_mode = USER_SPORT_MODE.get(
+                user_id,
+                "football",
+            )
+
+            sport_prefix = (
+                "NBA"
+                if sport_mode == "nba"
+                else "FOOTBALL"
+            )
+
             save_prediction(
                 user_id,
+                f"[{sport_prefix}] "
                 f"{team1} - {team2}",
                 answer,
             )
@@ -1174,20 +1272,39 @@ def telegram_webhook():
             )
             return "OK", 200
 
-        if text in [
+                if text in [
             "⚽ Анализ матча",
             "⚽ Analyze Match",
         ]:
-            if language == "en":
-                prompt = (
-                    "⚽ Send a match:\n\n"
-                    "Real Madrid - Barcelona"
-                )
+            sport_mode = USER_SPORT_MODE.get(
+                user_id,
+                "football",
+            )
+
+            if sport_mode == "nba":
+                if language == "en":
+                    prompt = (
+                        "🏀 Send an NBA game:\n\n"
+                        "Lakers - Celtics\n"
+                        "Warriors - Knicks"
+                    )
+                else:
+                    prompt = (
+                        "🏀 Напиши матч NBA:\n\n"
+                        "Lakers - Celtics\n"
+                        "Warriors - Knicks"
+                    )
             else:
-                prompt = (
-                    "⚽ Напиши матч:\n\n"
-                    "Real Madrid - Barcelona"
-                )
+                if language == "en":
+                    prompt = (
+                        "⚽ Send a match:\n\n"
+                        "Real Madrid - Barcelona"
+                    )
+                else:
+                    prompt = (
+                        "⚽ Напиши матч:\n\n"
+                        "Real Madrid - Barcelona"
+                    )
 
             send_message(
                 chat_id,
@@ -1196,6 +1313,7 @@ def telegram_webhook():
                     main_menu(language)
                 ),
             )
+            return "OK", 200
             return "OK", 200
 
         button_commands = {
