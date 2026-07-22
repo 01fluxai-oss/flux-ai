@@ -218,34 +218,136 @@ def admin_panel_message(language="ru"):
     )
 
 
-def profile_message(user_id, language="ru"):
+def profile_message(
+    user_id,
+    language="ru",
+):
     user = get_user(user_id)
+
     if not user:
-        return "👤 Profile not found. Press /start." if language == "en" else "👤 Профиль не найден. Нажми /start."
+        if language == "en":
+            return (
+                "👤 Profile not found. "
+                "Press /start."
+            )
+
+        return (
+            "👤 Профиль не найден. "
+            "Нажми /start."
+        )
 
     pro_active = is_pro(user_id)
     sport = get_user_sport(user_id)
     usage = get_today_usage(user_id)
 
+    predictions = get_predictions(
+        user_id,
+        limit=5,
+    )
+
     if language == "en":
-        pro_status = "✅ Active" if pro_active else "❌ Inactive"
-        sport_text = "🏀 NBA" if sport == "nba" else "⚽ Football"
-        limit_text = "Unlimited" if pro_active else f"{usage}/{FREE_DAILY_LIMIT} today"
-        return (
-            "👤 MY PROFILE\n\n━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🆔 ID: {user_id}\n\n💎 FLUX PRO: {pro_status}\n"
-            f"🎯 Selected sport: {sport_text}\n\n📊 Statistics:\n"
-            f"• Analyses today: {limit_text}\n• Winning predictions: coming soon\n\n🚀 FLUX AI v3.1"
+        pro_status = (
+            "✅ Active"
+            if pro_active
+            else "❌ Inactive"
         )
 
-    pro_status = "✅ Активен" if pro_active else "❌ Не активен"
-    sport_text = "🏀 NBA" if sport == "nba" else "⚽ Футбол"
-    limit_text = "Безлимит" if pro_active else f"{usage}/{FREE_DAILY_LIMIT} сегодня"
+        sport_text = (
+            "🏀 NBA"
+            if sport == "nba"
+            else "⚽ Football"
+        )
+    else:
+        pro_status = (
+            "✅ Активен"
+            if pro_active
+            else "❌ Не активен"
+        )
+
+        sport_text = (
+            "🏀 NBA"
+            if sport == "nba"
+            else "⚽ Футбол"
+        )
+
+    if pro_active:
+        limit_text = (
+            "Unlimited"
+            if language == "en"
+            else "Безлимит"
+        )
+    else:
+        if language == "en":
+            limit_text = (
+                f"{usage}/"
+                f"{FREE_DAILY_LIMIT} today"
+            )
+        else:
+            limit_text = (
+                f"{usage}/"
+                f"{FREE_DAILY_LIMIT} сегодня"
+            )
+
+    history_lines = []
+
+    for prediction in predictions:
+        match_name = prediction.get(
+            "match_name",
+            "Unknown match",
+        )
+
+        created_at = prediction.get(
+            "created_at"
+        )
+
+        if created_at:
+            date_text = created_at.strftime(
+                "%d.%m %H:%M"
+            )
+        else:
+            date_text = "—"
+
+        history_lines.append(
+            f"• {match_name}\n"
+            f"  🕒 {date_text}"
+        )
+
+    if history_lines:
+        history_text = "\n".join(
+            history_lines
+        )
+    else:
+        history_text = (
+            "No analyses yet."
+            if language == "en"
+            else "Анализов пока нет."
+        )
+
+    if language == "en":
+        return (
+            "👤 MY PROFILE\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"🆔 ID: {user_id}\n\n"
+            f"💎 FLUX PRO: {pro_status}\n"
+            f"🎯 Selected sport: {sport_text}\n\n"
+            "📊 Statistics:\n"
+            f"• Analyses today: {limit_text}\n\n"
+            "🕘 Recent analyses:\n"
+            f"{history_text}\n\n"
+            "🚀 FLUX AI v3.1"
+        )
+
     return (
-        "👤 МОЙ ПРОФИЛЬ\n\n━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🆔 ID: {user_id}\n\n💎 FLUX PRO: {pro_status}\n"
-        f"🎯 Выбранный спорт: {sport_text}\n\n📊 Статистика:\n"
-        f"• Анализы сегодня: {limit_text}\n• Победных прогнозов: скоро\n\n🚀 FLUX AI v3.1"
+        "👤 МОЙ ПРОФИЛЬ\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🆔 ID: {user_id}\n\n"
+        f"💎 FLUX PRO: {pro_status}\n"
+        f"🎯 Выбранный спорт: {sport_text}\n\n"
+        "📊 Статистика:\n"
+        f"• Анализы сегодня: {limit_text}\n\n"
+        "🕘 Последние анализы:\n"
+        f"{history_text}\n\n"
+        "🚀 FLUX AI v3.1"
     )
 
 
