@@ -478,6 +478,14 @@ def build_top_insights(
         "away"
     ]
 
+    over_probability = total_market[
+        "over_probability"
+    ]
+
+    under_probability = total_market[
+        "under_probability"
+    ]
+
     if home_probability >= 56:
         candidates.append(
             (
@@ -494,23 +502,20 @@ def build_top_insights(
             )
         )
 
-    candidates.append(
-        (
-            "over_total",
-            total_market[
-                "over_probability"
-            ],
+    if over_probability >= under_probability:
+        candidates.append(
+            (
+                "over_total",
+                over_probability,
+            )
         )
-    )
-
-    candidates.append(
-        (
-            "under_total",
-            total_market[
-                "under_probability"
-            ],
+    else:
+        candidates.append(
+            (
+                "under_total",
+                under_probability,
+            )
         )
-    )
 
     if recent_form1 >= 65:
         candidates.append(
