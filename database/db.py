@@ -9,9 +9,9 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 
 
 def get_connection():
-    return psycopg2.connect(
+    return psycopg.connect(
         DATABASE_URL,
-        cursor_factory=RealDictCursor,
+        row_factory=dict_row,
         connect_timeout=15,
     )
 
