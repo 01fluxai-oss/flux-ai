@@ -49,7 +49,10 @@ RISK_LABELS = {
 }
 
 
-def pick_label(code, language="ru"):
+def pick_label(
+    code,
+    language="ru",
+):
     labels = PICK_LABELS.get(
         language,
         PICK_LABELS["ru"],
@@ -61,7 +64,10 @@ def pick_label(code, language="ru"):
     )
 
 
-def risk_label(code, language="ru"):
+def risk_label(
+    code,
+    language="ru",
+):
     labels = RISK_LABELS.get(
         language,
         RISK_LABELS["ru"],
@@ -271,7 +277,8 @@ def build_ai_comment(
 
         if over_25 >= 70:
             lines.append(
-                "⚽ The model expects a high-scoring game."
+                "⚽ The model expects a "
+                "high-scoring game."
             )
 
         elif over_25 <= 40:
@@ -427,13 +434,44 @@ def analyze_match_v2(
         team2_form=team2_form,
     )
 
+    source_parts = []
+
+    team1_source = team1_form.get(
+        "data_source",
+        "api",
+    )
+
+    team2_source = team2_form.get(
+        "data_source",
+        "api",
+    )
+
+    if team1_source == "fallback":
+        source_parts.append(
+            f"{result['team1']}: FLUX fallback"
+        )
+    else:
+        source_parts.append(
+            f"{result['team1']}: TheSportsDB"
+        )
+
+    if team2_source == "fallback":
+        source_parts.append(
+            f"{result['team2']}: FLUX fallback"
+        )
+    else:
+        source_parts.append(
+            f"{result['team2']}: TheSportsDB"
+        )
+
+    data_source = " | ".join(
+        source_parts
+    )
+
     return {
         "team1": result["team1"],
         "team2": result["team2"],
-        "source": data.get(
-            "source",
-            "TheSportsDB + FLUX fallback",
-        ),
+        "source": data_source,
         "team1_form": team1_form,
         "team2_form": team2_form,
         "team1_rating": result["team1_rating"],
@@ -447,6 +485,7 @@ def analyze_match_v2(
         "confidence": result["confidence"],
         "data_quality": result["data_quality"],
     }
+
 
 def format_analysis(
     result,
@@ -535,6 +574,27 @@ def format_analysis(
         language,
     )
 
+    data_quality = int(
+        result.get(
+            "data_quality",
+            0,
+        )
+    )
+
+    data_source = result.get(
+        "source",
+        "FLUX AI",
+    )
+
+    if data_quality >= 80:
+        quality_icon = "🟢"
+
+    elif data_quality >= 50:
+        quality_icon = "🟡"
+
+    else:
+        quality_icon = "🔴"
+
     if language == "en":
         return f"""🏆 FLUX AI PRO
 ━━━━━━━━━━━━━━━━━━━━
@@ -616,6 +676,12 @@ X2 — {double_chance.get("X2", "—")}%
 
 ⚠️ Risk Level:
 {risk_text}
+
+📡 Data Source:
+{data_source}
+
+🧪 Data Quality:
+{quality_icon} {data_quality}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -710,6 +776,12 @@ X2 — {double_chance.get("X2", "—")}%
 
 ⚠️ Риск:
 {risk_text}
+
+📡 Источник данных:
+{data_source}
+
+🧪 Качество данных:
+{quality_icon} {data_quality}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
