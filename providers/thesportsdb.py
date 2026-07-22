@@ -389,6 +389,113 @@ TEAM_MAP = {
 
 
 FALLBACK_FORMS = {
+    "Manchester United": {
+    "matches": 10,
+    "points": 18,
+    "wins": 5,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 18,
+    "goals_against": 13,
+    "avg_goals_for": 1.8,
+    "avg_goals_against": 1.3,
+},
+
+"Arsenal": {
+    "matches": 10,
+    "points": 23,
+    "wins": 7,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 22,
+    "goals_against": 8,
+    "avg_goals_for": 2.2,
+    "avg_goals_against": 0.8,
+},
+
+"Chelsea": {
+    "matches": 10,
+    "points": 19,
+    "wins": 6,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 20,
+    "goals_against": 14,
+    "avg_goals_for": 2.0,
+    "avg_goals_against": 1.4,
+},
+
+"Tottenham Hotspur": {
+    "matches": 10,
+    "points": 17,
+    "wins": 5,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 19,
+    "goals_against": 16,
+    "avg_goals_for": 1.9,
+    "avg_goals_against": 1.6,
+},
+
+"Inter Milan": {
+    "matches": 10,
+    "points": 23,
+    "wins": 7,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 23,
+    "goals_against": 9,
+    "avg_goals_for": 2.3,
+    "avg_goals_against": 0.9,
+},
+
+"AC Milan": {
+    "matches": 10,
+    "points": 19,
+    "wins": 6,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 19,
+    "goals_against": 13,
+    "avg_goals_for": 1.9,
+    "avg_goals_against": 1.3,
+},
+
+"Juventus": {
+    "matches": 10,
+    "points": 20,
+    "wins": 6,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 17,
+    "goals_against": 9,
+    "avg_goals_for": 1.7,
+    "avg_goals_against": 0.9,
+},
+
+"Atletico Madrid": {
+    "matches": 10,
+    "points": 21,
+    "wins": 6,
+    "draws": 3,
+    "losses": 1,
+    "goals_for": 19,
+    "goals_against": 8,
+    "avg_goals_for": 1.9,
+    "avg_goals_against": 0.8,
+},
+
+"Borussia Dortmund": {
+    "matches": 10,
+    "points": 19,
+    "wins": 6,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 22,
+    "goals_against": 15,
+    "avg_goals_for": 2.2,
+    "avg_goals_against": 1.5,
+},
     "Inter Miami": {
         "matches": 10,
         "points": 25,
