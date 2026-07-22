@@ -836,18 +836,18 @@ def handle_analysis(
             reply_markup=main_menu(language),
         )
 
+                sport_mode = USER_SPORT_MODE.get(
+            user_id,
+            "football",
+        )
+
+        sport_prefix = (
+            "NBA"
+            if sport_mode == "nba"
+            else "FOOTBALL"
+        )
+
         for team1, team2 in matches:
-                        sport_mode = USER_SPORT_MODE.get(
-                user_id,
-                "football",
-            )
-
-            sport_prefix = (
-                "NBA"
-                if sport_mode == "nba"
-                else "FOOTBALL"
-            )
-
             save_prediction(
                 user_id,
                 f"[{sport_prefix}] "
