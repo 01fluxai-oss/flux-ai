@@ -30,7 +30,7 @@ CHANNEL_URL = "https://t.me/FluxAIDaily"
 CHANNEL_USERNAME = "@FluxAIDaily"
 
 # Временно 10 для тестирования NBA. После успешного теста вернуть 2.
-FREE_DAILY_LIMIT = 10
+FREE_DAILY_LIMIT = 2
 PRO_PRICE_STARS = 500
 PRO_DAYS = 30
 
