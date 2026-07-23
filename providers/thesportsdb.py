@@ -1,654 +1,250 @@
 import os
+from datetime import date, timedelta
 
 import requests
 
 
-API_KEY = os.getenv(
-    "THESPORTSDB_API_KEY",
-    "123",
-)
-
-BASE_URL = (
-    f"https://www.thesportsdb.com/"
-    f"api/v1/json/{API_KEY}"
-)
+API_KEY = os.getenv("THESPORTSDB_API_KEY", "123")
+BASE_URL = f"https://www.thesportsdb.com/api/v1/json/{API_KEY}"
+REQUEST_TIMEOUT = 20
 
 
 TEAM_MAP = {
-    "реал": {
-        "id": "133738",
-        "name": "Real Madrid",
-    },
-    "реал мадрид": {
-        "id": "133738",
-        "name": "Real Madrid",
-    },
-    "real": {
-        "id": "133738",
-        "name": "Real Madrid",
-    },
-    "real madrid": {
-        "id": "133738",
-        "name": "Real Madrid",
-    },
+    "реал": {"id": "133738", "name": "Real Madrid"},
+    "реал мадрид": {"id": "133738", "name": "Real Madrid"},
+    "real": {"id": "133738", "name": "Real Madrid"},
+    "real madrid": {"id": "133738", "name": "Real Madrid"},
 
-    "барселона": {
-        "id": "133739",
-        "name": "Barcelona",
-    },
-    "barca": {
-        "id": "133739",
-        "name": "Barcelona",
-    },
-    "barcelona": {
-        "id": "133739",
-        "name": "Barcelona",
-    },
+    "барселона": {"id": "133739", "name": "Barcelona"},
+    "barca": {"id": "133739", "name": "Barcelona"},
+    "barcelona": {"id": "133739", "name": "Barcelona"},
 
-    "псж": {
-        "id": "133714",
-        "name": "Paris Saint-Germain",
-    },
-    "psg": {
-        "id": "133714",
-        "name": "Paris Saint-Germain",
-    },
-    "paris saint germain": {
-        "id": "133714",
-        "name": "Paris Saint-Germain",
-    },
-    "paris saint-germain": {
-        "id": "133714",
-        "name": "Paris Saint-Germain",
-    },
+    "псж": {"id": "133714", "name": "Paris Saint-Germain"},
+    "psg": {"id": "133714", "name": "Paris Saint-Germain"},
+    "paris saint germain": {"id": "133714", "name": "Paris Saint-Germain"},
+    "paris saint-germain": {"id": "133714", "name": "Paris Saint-Germain"},
 
-    "ман сити": {
-        "id": "133613",
-        "name": "Manchester City",
-    },
-    "мч": {
-        "id": "133613",
-        "name": "Manchester City",
-    },
-    "man city": {
-        "id": "133613",
-        "name": "Manchester City",
-    },
-    "manchester city": {
-        "id": "133613",
-        "name": "Manchester City",
-    },
+    "ман сити": {"id": "133613", "name": "Manchester City"},
+    "мч": {"id": "133613", "name": "Manchester City"},
+    "man city": {"id": "133613", "name": "Manchester City"},
+    "manchester city": {"id": "133613", "name": "Manchester City"},
 
-    "манчестер юнайтед": {
-        "id": "133612",
-        "name": "Manchester United",
-    },
-    "ман юнайтед": {
-        "id": "133612",
-        "name": "Manchester United",
-    },
-    "man utd": {
-        "id": "133612",
-        "name": "Manchester United",
-    },
-    "manchester united": {
-        "id": "133612",
-        "name": "Manchester United",
-    },
+    "манчестер юнайтед": {"id": "133612", "name": "Manchester United"},
+    "ман юнайтед": {"id": "133612", "name": "Manchester United"},
+    "man utd": {"id": "133612", "name": "Manchester United"},
+    "manchester united": {"id": "133612", "name": "Manchester United"},
 
-    "ливерпуль": {
-        "id": "133602",
-        "name": "Liverpool",
-    },
-    "liverpool": {
-        "id": "133602",
-        "name": "Liverpool",
-    },
+    "ливерпуль": {"id": "133602", "name": "Liverpool"},
+    "liverpool": {"id": "133602", "name": "Liverpool"},
 
-    "арсенал": {
-        "id": "133604",
-        "name": "Arsenal",
-    },
-    "arsenal": {
-        "id": "133604",
-        "name": "Arsenal",
-    },
+    "арсенал": {"id": "133604", "name": "Arsenal"},
+    "arsenal": {"id": "133604", "name": "Arsenal"},
 
-    "челси": {
-        "id": "133610",
-        "name": "Chelsea",
-    },
-    "chelsea": {
-        "id": "133610",
-        "name": "Chelsea",
-    },
+    "челси": {"id": "133610", "name": "Chelsea"},
+    "chelsea": {"id": "133610", "name": "Chelsea"},
 
-    "тоттенхэм": {
-        "id": "133616",
-        "name": "Tottenham Hotspur",
-    },
-    "тоттенхем": {
-        "id": "133616",
-        "name": "Tottenham Hotspur",
-    },
-    "spurs": {
-        "id": "133616",
-        "name": "Tottenham Hotspur",
-    },
-    "tottenham": {
-        "id": "133616",
-        "name": "Tottenham Hotspur",
-    },
-    "tottenham hotspur": {
-        "id": "133616",
-        "name": "Tottenham Hotspur",
-    },
+    "тоттенхэм": {"id": "133616", "name": "Tottenham Hotspur"},
+    "тоттенхем": {"id": "133616", "name": "Tottenham Hotspur"},
+    "spurs": {"id": "133616", "name": "Tottenham Hotspur"},
+    "tottenham": {"id": "133616", "name": "Tottenham Hotspur"},
+    "tottenham hotspur": {"id": "133616", "name": "Tottenham Hotspur"},
 
-    "бавария": {
-        "id": "133664",
-        "name": "Bayern Munich",
-    },
-    "bayern": {
-        "id": "133664",
-        "name": "Bayern Munich",
-    },
-    "bayern munich": {
-        "id": "133664",
-        "name": "Bayern Munich",
-    },
+    "бавария": {"id": "133664", "name": "Bayern Munich"},
+    "bayern": {"id": "133664", "name": "Bayern Munich"},
+    "bayern munich": {"id": "133664", "name": "Bayern Munich"},
 
-    "боруссия дортмунд": {
-        "id": "133650",
-        "name": "Borussia Dortmund",
-    },
-    "дортмунд": {
-        "id": "133650",
-        "name": "Borussia Dortmund",
-    },
-    "dortmund": {
-        "id": "133650",
-        "name": "Borussia Dortmund",
-    },
-    "borussia dortmund": {
-        "id": "133650",
-        "name": "Borussia Dortmund",
-    },
+    "боруссия дортмунд": {"id": "133650", "name": "Borussia Dortmund"},
+    "дортмунд": {"id": "133650", "name": "Borussia Dortmund"},
+    "dortmund": {"id": "133650", "name": "Borussia Dortmund"},
+    "borussia dortmund": {"id": "133650", "name": "Borussia Dortmund"},
 
-    "ювентус": {
-        "id": "133676",
-        "name": "Juventus",
-    },
-    "juventus": {
-        "id": "133676",
-        "name": "Juventus",
-    },
+    "ювентус": {"id": "133676", "name": "Juventus"},
+    "juventus": {"id": "133676", "name": "Juventus"},
 
-    "интер": {
-        "id": "133661",
-        "name": "Inter Milan",
-    },
-    "интер милан": {
-        "id": "133661",
-        "name": "Inter Milan",
-    },
-    "inter": {
-        "id": "133661",
-        "name": "Inter Milan",
-    },
-    "inter milan": {
-        "id": "133661",
-        "name": "Inter Milan",
-    },
+    "интер": {"id": "133661", "name": "Inter Milan"},
+    "интер милан": {"id": "133661", "name": "Inter Milan"},
+    "inter": {"id": "133661", "name": "Inter Milan"},
+    "inter milan": {"id": "133661", "name": "Inter Milan"},
 
-    "милан": {
-        "id": "133667",
-        "name": "AC Milan",
-    },
-    "ac milan": {
-        "id": "133667",
-        "name": "AC Milan",
-    },
+    "милан": {"id": "133667", "name": "AC Milan"},
+    "ac milan": {"id": "133667", "name": "AC Milan"},
 
-    "атлетико": {
-        "id": "133729",
-        "name": "Atletico Madrid",
-    },
-    "атлетико мадрид": {
-        "id": "133729",
-        "name": "Atletico Madrid",
-    },
-    "atletico": {
-        "id": "133729",
-        "name": "Atletico Madrid",
-    },
-    "atletico madrid": {
-        "id": "133729",
-        "name": "Atletico Madrid",
-    },
+    "атлетико": {"id": "133729", "name": "Atletico Madrid"},
+    "атлетико мадрид": {"id": "133729", "name": "Atletico Madrid"},
+    "atletico": {"id": "133729", "name": "Atletico Madrid"},
+    "atletico madrid": {"id": "133729", "name": "Atletico Madrid"},
 
-    "интер майами": {
-        "id": "135649",
-        "name": "Inter Miami",
-    },
-    "inter miami": {
-        "id": "135649",
-        "name": "Inter Miami",
-    },
-    "inter miami cf": {
-        "id": "135649",
-        "name": "Inter Miami",
-    },
+    "интер майами": {"id": "135649", "name": "Inter Miami"},
+    "inter miami": {"id": "135649", "name": "Inter Miami"},
+    "inter miami cf": {"id": "135649", "name": "Inter Miami"},
 
-    "чикаго файр": {
-        "id": "134886",
-        "name": "Chicago Fire",
-    },
-    "chicago fire": {
-        "id": "134886",
-        "name": "Chicago Fire",
-    },
-    "chicago fire fc": {
-        "id": "134886",
-        "name": "Chicago Fire",
-    },
+    "чикаго файр": {"id": "134886", "name": "Chicago Fire"},
+    "chicago fire": {"id": "134886", "name": "Chicago Fire"},
+    "chicago fire fc": {"id": "134886", "name": "Chicago Fire"},
 
-    "ла гэлакси": {
-        "id": "134839",
-        "name": "LA Galaxy",
-    },
-    "la galaxy": {
-        "id": "134839",
-        "name": "LA Galaxy",
-    },
+    "ла гэлакси": {"id": "134839", "name": "LA Galaxy"},
+    "la galaxy": {"id": "134839", "name": "LA Galaxy"},
 
-    "лос анджелес": {
-        "id": "135221",
-        "name": "Los Angeles FC",
-    },
-    "lafc": {
-        "id": "135221",
-        "name": "Los Angeles FC",
-    },
-    "los angeles fc": {
-        "id": "135221",
-        "name": "Los Angeles FC",
-    },
+    "лос анджелес": {"id": "135221", "name": "Los Angeles FC"},
+    "lafc": {"id": "135221", "name": "Los Angeles FC"},
+    "los angeles fc": {"id": "135221", "name": "Los Angeles FC"},
 
-    "портленд тимберс": {
-        "id": "134845",
-        "name": "Portland Timbers",
-    },
-    "portland timbers": {
-        "id": "134845",
-        "name": "Portland Timbers",
-    },
+    "портленд тимберс": {"id": "134845", "name": "Portland Timbers"},
+    "portland timbers": {"id": "134845", "name": "Portland Timbers"},
 
-    "сиэтл саундерс": {
-        "id": "134841",
-        "name": "Seattle Sounders",
-    },
-    "seattle sounders": {
-        "id": "134841",
-        "name": "Seattle Sounders",
-    },
+    "сиэтл саундерс": {"id": "134841", "name": "Seattle Sounders"},
+    "seattle sounders": {"id": "134841", "name": "Seattle Sounders"},
 
-    "португалия": {
-        "id": "134889",
-        "name": "Portugal",
-    },
-    "portugal": {
-        "id": "134889",
-        "name": "Portugal",
-    },
+    "португалия": {"id": "134889", "name": "Portugal"},
+    "portugal": {"id": "134889", "name": "Portugal"},
 
-    "испания": {
-        "id": "134880",
-        "name": "Spain",
-    },
-    "spain": {
-        "id": "134880",
-        "name": "Spain",
-    },
+    "испания": {"id": "134880", "name": "Spain"},
+    "spain": {"id": "134880", "name": "Spain"},
 
-    "бразилия": {
-        "id": "134821",
-        "name": "Brazil",
-    },
-    "brazil": {
-        "id": "134821",
-        "name": "Brazil",
-    },
+    "бразилия": {"id": "134821", "name": "Brazil"},
+    "brazil": {"id": "134821", "name": "Brazil"},
 
-    "аргентина": {
-        "id": "134828",
-        "name": "Argentina",
-    },
-    "argentina": {
-        "id": "134828",
-        "name": "Argentina",
-    },
+    "аргентина": {"id": "134828", "name": "Argentina"},
+    "argentina": {"id": "134828", "name": "Argentina"},
 
-    "англия": {
-        "id": "134835",
-        "name": "England",
-    },
-    "england": {
-        "id": "134835",
-        "name": "England",
-    },
+    "англия": {"id": "134835", "name": "England"},
+    "england": {"id": "134835", "name": "England"},
 
-    "франция": {
-        "id": "134853",
-        "name": "France",
-    },
-    "france": {
-        "id": "134853",
-        "name": "France",
-    },
+    "франция": {"id": "134853", "name": "France"},
+    "france": {"id": "134853", "name": "France"},
 
-    "германия": {
-        "id": "134858",
-        "name": "Germany",
-    },
-    "germany": {
-        "id": "134858",
-        "name": "Germany",
-    },
+    "германия": {"id": "134858", "name": "Germany"},
+    "germany": {"id": "134858", "name": "Germany"},
 
-    "италия": {
-        "id": "134872",
-        "name": "Italy",
-    },
-    "italy": {
-        "id": "134872",
-        "name": "Italy",
-    },
+    "италия": {"id": "134872", "name": "Italy"},
+    "italy": {"id": "134872", "name": "Italy"},
 
-    "нидерланды": {
-        "id": "134840",
-        "name": "Netherlands",
-    },
-    "голландия": {
-        "id": "134840",
-        "name": "Netherlands",
-    },
-    "netherlands": {
-        "id": "134840",
-        "name": "Netherlands",
-    },
+    "нидерланды": {"id": "134840", "name": "Netherlands"},
+    "голландия": {"id": "134840", "name": "Netherlands"},
+    "netherlands": {"id": "134840", "name": "Netherlands"},
 
-    "норвегия": {
-        "id": "134841",
-        "name": "Norway",
-    },
-    "norway": {
-        "id": "134841",
-        "name": "Norway",
-    },
+    # Не используем старый ошибочный ID Seattle Sounders для Norway.
+    # Если команда не найдена в карте, search_team найдёт её через API.
+    "норвегия": {"id": None, "name": "Norway"},
+    "norway": {"id": None, "name": "Norway"},
 }
 
 
 FALLBACK_FORMS = {
     "Manchester United": {
-    "matches": 10,
-    "points": 18,
-    "wins": 5,
-    "draws": 3,
-    "losses": 2,
-    "goals_for": 18,
-    "goals_against": 13,
-    "avg_goals_for": 1.8,
-    "avg_goals_against": 1.3,
-},
-
-"Arsenal": {
-    "matches": 10,
-    "points": 23,
-    "wins": 7,
-    "draws": 2,
-    "losses": 1,
-    "goals_for": 22,
-    "goals_against": 8,
-    "avg_goals_for": 2.2,
-    "avg_goals_against": 0.8,
-},
-
-"Chelsea": {
-    "matches": 10,
-    "points": 19,
-    "wins": 6,
-    "draws": 1,
-    "losses": 3,
-    "goals_for": 20,
-    "goals_against": 14,
-    "avg_goals_for": 2.0,
-    "avg_goals_against": 1.4,
-},
-
-"Tottenham Hotspur": {
-    "matches": 10,
-    "points": 17,
-    "wins": 5,
-    "draws": 2,
-    "losses": 3,
-    "goals_for": 19,
-    "goals_against": 16,
-    "avg_goals_for": 1.9,
-    "avg_goals_against": 1.6,
-},
-
-"Inter Milan": {
-    "matches": 10,
-    "points": 23,
-    "wins": 7,
-    "draws": 2,
-    "losses": 1,
-    "goals_for": 23,
-    "goals_against": 9,
-    "avg_goals_for": 2.3,
-    "avg_goals_against": 0.9,
-},
-
-"AC Milan": {
-    "matches": 10,
-    "points": 19,
-    "wins": 6,
-    "draws": 1,
-    "losses": 3,
-    "goals_for": 19,
-    "goals_against": 13,
-    "avg_goals_for": 1.9,
-    "avg_goals_against": 1.3,
-},
-
-"Juventus": {
-    "matches": 10,
-    "points": 20,
-    "wins": 6,
-    "draws": 2,
-    "losses": 2,
-    "goals_for": 17,
-    "goals_against": 9,
-    "avg_goals_for": 1.7,
-    "avg_goals_against": 0.9,
-},
-
-"Atletico Madrid": {
-    "matches": 10,
-    "points": 21,
-    "wins": 6,
-    "draws": 3,
-    "losses": 1,
-    "goals_for": 19,
-    "goals_against": 8,
-    "avg_goals_for": 1.9,
-    "avg_goals_against": 0.8,
-},
-
-"Borussia Dortmund": {
-    "matches": 10,
-    "points": 19,
-    "wins": 6,
-    "draws": 1,
-    "losses": 3,
-    "goals_for": 22,
-    "goals_against": 15,
-    "avg_goals_for": 2.2,
-    "avg_goals_against": 1.5,
-},
+        "matches": 10, "points": 18, "wins": 5, "draws": 3, "losses": 2,
+        "goals_for": 18, "goals_against": 13,
+        "avg_goals_for": 1.8, "avg_goals_against": 1.3,
+    },
+    "Arsenal": {
+        "matches": 10, "points": 23, "wins": 7, "draws": 2, "losses": 1,
+        "goals_for": 22, "goals_against": 8,
+        "avg_goals_for": 2.2, "avg_goals_against": 0.8,
+    },
+    "Chelsea": {
+        "matches": 10, "points": 19, "wins": 6, "draws": 1, "losses": 3,
+        "goals_for": 20, "goals_against": 14,
+        "avg_goals_for": 2.0, "avg_goals_against": 1.4,
+    },
+    "Tottenham Hotspur": {
+        "matches": 10, "points": 17, "wins": 5, "draws": 2, "losses": 3,
+        "goals_for": 19, "goals_against": 16,
+        "avg_goals_for": 1.9, "avg_goals_against": 1.6,
+    },
+    "Inter Milan": {
+        "matches": 10, "points": 23, "wins": 7, "draws": 2, "losses": 1,
+        "goals_for": 23, "goals_against": 9,
+        "avg_goals_for": 2.3, "avg_goals_against": 0.9,
+    },
+    "AC Milan": {
+        "matches": 10, "points": 19, "wins": 6, "draws": 1, "losses": 3,
+        "goals_for": 19, "goals_against": 13,
+        "avg_goals_for": 1.9, "avg_goals_against": 1.3,
+    },
+    "Juventus": {
+        "matches": 10, "points": 20, "wins": 6, "draws": 2, "losses": 2,
+        "goals_for": 17, "goals_against": 9,
+        "avg_goals_for": 1.7, "avg_goals_against": 0.9,
+    },
+    "Atletico Madrid": {
+        "matches": 10, "points": 21, "wins": 6, "draws": 3, "losses": 1,
+        "goals_for": 19, "goals_against": 8,
+        "avg_goals_for": 1.9, "avg_goals_against": 0.8,
+    },
+    "Borussia Dortmund": {
+        "matches": 10, "points": 19, "wins": 6, "draws": 1, "losses": 3,
+        "goals_for": 22, "goals_against": 15,
+        "avg_goals_for": 2.2, "avg_goals_against": 1.5,
+    },
     "Inter Miami": {
-        "matches": 10,
-        "points": 25,
-        "wins": 8,
-        "draws": 1,
-        "losses": 1,
-        "goals_for": 31,
-        "goals_against": 20,
-        "avg_goals_for": 3.1,
-        "avg_goals_against": 2.0,
+        "matches": 10, "points": 25, "wins": 8, "draws": 1, "losses": 1,
+        "goals_for": 31, "goals_against": 20,
+        "avg_goals_for": 3.1, "avg_goals_against": 2.0,
     },
     "Chicago Fire": {
-        "matches": 10,
-        "points": 24,
-        "wins": 8,
-        "draws": 0,
-        "losses": 2,
-        "goals_for": 29,
-        "goals_against": 15,
-        "avg_goals_for": 2.9,
-        "avg_goals_against": 1.5,
+        "matches": 10, "points": 24, "wins": 8, "draws": 0, "losses": 2,
+        "goals_for": 29, "goals_against": 15,
+        "avg_goals_for": 2.9, "avg_goals_against": 1.5,
     },
     "Real Madrid": {
-        "matches": 10,
-        "points": 23,
-        "wins": 7,
-        "draws": 2,
-        "losses": 1,
-        "goals_for": 24,
-        "goals_against": 11,
-        "avg_goals_for": 2.4,
-        "avg_goals_against": 1.1,
+        "matches": 10, "points": 23, "wins": 7, "draws": 2, "losses": 1,
+        "goals_for": 24, "goals_against": 11,
+        "avg_goals_for": 2.4, "avg_goals_against": 1.1,
     },
     "Barcelona": {
-        "matches": 10,
-        "points": 22,
-        "wins": 7,
-        "draws": 1,
-        "losses": 2,
-        "goals_for": 23,
-        "goals_against": 12,
-        "avg_goals_for": 2.3,
-        "avg_goals_against": 1.2,
+        "matches": 10, "points": 22, "wins": 7, "draws": 1, "losses": 2,
+        "goals_for": 23, "goals_against": 12,
+        "avg_goals_for": 2.3, "avg_goals_against": 1.2,
     },
     "Paris Saint-Germain": {
-        "matches": 10,
-        "points": 21,
-        "wins": 6,
-        "draws": 3,
-        "losses": 1,
-        "goals_for": 22,
-        "goals_against": 10,
-        "avg_goals_for": 2.2,
-        "avg_goals_against": 1.0,
+        "matches": 10, "points": 21, "wins": 6, "draws": 3, "losses": 1,
+        "goals_for": 22, "goals_against": 10,
+        "avg_goals_for": 2.2, "avg_goals_against": 1.0,
     },
     "Manchester City": {
-        "matches": 10,
-        "points": 24,
-        "wins": 7,
-        "draws": 3,
-        "losses": 0,
-        "goals_for": 25,
-        "goals_against": 9,
-        "avg_goals_for": 2.5,
-        "avg_goals_against": 0.9,
+        "matches": 10, "points": 24, "wins": 7, "draws": 3, "losses": 0,
+        "goals_for": 25, "goals_against": 9,
+        "avg_goals_for": 2.5, "avg_goals_against": 0.9,
     },
     "Liverpool": {
-    "matches": 10,
-    "points": 23,
-    "wins": 7,
-    "draws": 2,
-    "losses": 1,
-    "goals_for": 24,
-    "goals_against": 10,
-    "avg_goals_for": 2.4,
-    "avg_goals_against": 1.0,
+        "matches": 10, "points": 23, "wins": 7, "draws": 2, "losses": 1,
+        "goals_for": 24, "goals_against": 10,
+        "avg_goals_for": 2.4, "avg_goals_against": 1.0,
     },
     "Bayern Munich": {
-        "matches": 10,
-        "points": 22,
-        "wins": 7,
-        "draws": 1,
-        "losses": 2,
-        "goals_for": 26,
-        "goals_against": 13,
-        "avg_goals_for": 2.6,
-        "avg_goals_against": 1.3,
+        "matches": 10, "points": 22, "wins": 7, "draws": 1, "losses": 2,
+        "goals_for": 26, "goals_against": 13,
+        "avg_goals_for": 2.6, "avg_goals_against": 1.3,
     },
     "Portugal": {
-        "matches": 10,
-        "points": 22,
-        "wins": 7,
-        "draws": 1,
-        "losses": 2,
-        "goals_for": 22,
-        "goals_against": 9,
-        "avg_goals_for": 2.2,
-        "avg_goals_against": 0.9,
+        "matches": 10, "points": 22, "wins": 7, "draws": 1, "losses": 2,
+        "goals_for": 22, "goals_against": 9,
+        "avg_goals_for": 2.2, "avg_goals_against": 0.9,
     },
     "Spain": {
-        "matches": 10,
-        "points": 21,
-        "wins": 6,
-        "draws": 3,
-        "losses": 1,
-        "goals_for": 21,
-        "goals_against": 8,
-        "avg_goals_for": 2.1,
-        "avg_goals_against": 0.8,
+        "matches": 10, "points": 21, "wins": 6, "draws": 3, "losses": 1,
+        "goals_for": 21, "goals_against": 8,
+        "avg_goals_for": 2.1, "avg_goals_against": 0.8,
     },
     "Brazil": {
-        "matches": 10,
-        "points": 20,
-        "wins": 6,
-        "draws": 2,
-        "losses": 2,
-        "goals_for": 20,
-        "goals_against": 10,
-        "avg_goals_for": 2.0,
-        "avg_goals_against": 1.0,
+        "matches": 10, "points": 20, "wins": 6, "draws": 2, "losses": 2,
+        "goals_for": 20, "goals_against": 10,
+        "avg_goals_for": 2.0, "avg_goals_against": 1.0,
     },
     "Argentina": {
-        "matches": 10,
-        "points": 24,
-        "wins": 8,
-        "draws": 0,
-        "losses": 2,
-        "goals_for": 21,
-        "goals_against": 8,
-        "avg_goals_for": 2.1,
-        "avg_goals_against": 0.8,
+        "matches": 10, "points": 24, "wins": 8, "draws": 0, "losses": 2,
+        "goals_for": 21, "goals_against": 8,
+        "avg_goals_for": 2.1, "avg_goals_against": 0.8,
     },
     "England": {
-        "matches": 10,
-        "points": 22,
-        "wins": 7,
-        "draws": 1,
-        "losses": 2,
-        "goals_for": 20,
-        "goals_against": 9,
-        "avg_goals_for": 2.0,
-        "avg_goals_against": 0.9,
+        "matches": 10, "points": 22, "wins": 7, "draws": 1, "losses": 2,
+        "goals_for": 20, "goals_against": 9,
+        "avg_goals_for": 2.0, "avg_goals_against": 0.9,
     },
     "Norway": {
-        "matches": 10,
-        "points": 17,
-        "wins": 5,
-        "draws": 2,
-        "losses": 3,
-        "goals_for": 18,
-        "goals_against": 13,
-        "avg_goals_for": 1.8,
-        "avg_goals_against": 1.3,
+        "matches": 10, "points": 17, "wins": 5, "draws": 2, "losses": 3,
+        "goals_for": 18, "goals_against": 13,
+        "avg_goals_for": 1.8, "avg_goals_against": 1.3,
     },
 }
 
@@ -664,18 +260,13 @@ def normalize_key(name):
     )
 
 
-def api_get(
-    endpoint,
-    params=None,
-):
-    url = (
-        f"{BASE_URL}/{endpoint}"
-    )
+def api_get(endpoint, params=None):
+    url = f"{BASE_URL}/{endpoint}"
 
     response = requests.get(
         url,
         params=params or {},
-        timeout=20,
+        timeout=REQUEST_TIMEOUT,
     )
 
     response.raise_for_status()
@@ -683,54 +274,42 @@ def api_get(
 
 
 def search_team(team_name):
-    key = normalize_key(
-        team_name
-    )
+    key = normalize_key(team_name)
 
-    if key in TEAM_MAP:
-        return TEAM_MAP[key]
+    mapped_team = TEAM_MAP.get(key)
+
+    if mapped_team and mapped_team.get("id"):
+        return mapped_team
+
+    search_name = (
+        mapped_team.get("name")
+        if mapped_team
+        else team_name
+    )
 
     try:
         data = api_get(
             "searchteams.php",
-            {
-                "t": team_name,
-            },
+            {"t": search_name},
         )
 
-        teams = (
-            data.get("teams")
-            or []
-        )
+        teams = data.get("teams") or []
 
         if teams:
             exact_match = None
 
             for team in teams:
-                api_name = team.get(
-                    "strTeam",
-                    "",
-                )
+                api_name = team.get("strTeam", "")
 
-                if (
-                    normalize_key(api_name)
-                    == key
-                ):
+                if normalize_key(api_name) == normalize_key(search_name):
                     exact_match = team
                     break
 
-            selected = (
-                exact_match
-                or teams[0]
-            )
+            selected = exact_match or teams[0]
 
             return {
-                "id": selected.get(
-                    "idTeam"
-                ),
-                "name": selected.get(
-                    "strTeam"
-                ),
+                "id": selected.get("idTeam"),
+                "name": selected.get("strTeam"),
             }
 
     except Exception as error:
@@ -744,6 +323,7 @@ def search_team(team_name):
         f"Team not found: {team_name}"
     )
 
+
 def clean_team_name(name):
     return (
         str(name)
@@ -755,38 +335,21 @@ def clean_team_name(name):
     )
 
 
-def same_team(
-    first_name,
-    second_name,
-):
-    if (
-        not first_name
-        or not second_name
-    ):
+def same_team(first_name, second_name):
+    if not first_name or not second_name:
         return False
 
-    return (
-        clean_team_name(first_name)
-        == clean_team_name(second_name)
-    )
+    return clean_team_name(first_name) == clean_team_name(second_name)
 
 
-def get_last_matches(
-    team_id,
-    count=10,
-):
+def get_last_matches(team_id, count=10):
     try:
         data = api_get(
             "eventslast.php",
-            {
-                "id": team_id,
-            },
+            {"id": team_id},
         )
 
-        events = (
-            data.get("results")
-            or []
-        )
+        events = data.get("results") or []
 
     except Exception as error:
         print(
@@ -794,79 +357,38 @@ def get_last_matches(
             repr(error),
             flush=True,
         )
-
         return []
 
     finished_matches = []
 
     for event in events:
-        home_score = event.get(
-            "intHomeScore"
-        )
+        home_score = event.get("intHomeScore")
+        away_score = event.get("intAwayScore")
 
-        away_score = event.get(
-            "intAwayScore"
-        )
-
-        if (
-            home_score is not None
-            and away_score is not None
-        ):
-            finished_matches.append(
-                event
-            )
+        if home_score is not None and away_score is not None:
+            finished_matches.append(event)
 
     return finished_matches[:count]
 
 
-def convert_event(
-    event,
-    team_name,
-):
-    home_team = event.get(
-        "strHomeTeam",
-        "",
-    )
-
-    away_team = event.get(
-        "strAwayTeam",
-        "",
-    )
+def convert_event(event, team_name):
+    home_team = event.get("strHomeTeam", "")
+    away_team = event.get("strAwayTeam", "")
 
     try:
-        home_score = int(
-            event.get(
-                "intHomeScore"
-            )
-            or 0
-        )
+        home_score = int(event.get("intHomeScore") or 0)
+        away_score = int(event.get("intAwayScore") or 0)
 
-        away_score = int(
-            event.get(
-                "intAwayScore"
-            )
-            or 0
-        )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
+    except (TypeError, ValueError):
         return None
 
-    if same_team(
-        home_team,
-        team_name,
-    ):
+    if same_team(home_team, team_name):
         opponent = away_team
         goals_for = home_score
         goals_against = away_score
         venue = "home"
 
-    elif same_team(
-        away_team,
-        team_name,
-    ):
+    elif same_team(away_team, team_name):
         opponent = home_team
         goals_for = away_score
         goals_against = home_score
@@ -878,11 +400,9 @@ def convert_event(
     if goals_for > goals_against:
         match_result = "win"
         icon = "✅"
-
     elif goals_for == goals_against:
         match_result = "draw"
         icon = "➖"
-
     else:
         match_result = "loss"
         icon = "❌"
@@ -891,82 +411,44 @@ def convert_event(
         "opponent": opponent,
         "goals_for": goals_for,
         "goals_against": goals_against,
-        "score": (
-            f"{goals_for}:"
-            f"{goals_against}"
-        ),
+        "score": f"{goals_for}:{goals_against}",
         "result": match_result,
         "icon": icon,
         "venue": venue,
-        "league": event.get(
-            "strLeague",
-            "",
-        ),
-        "date": event.get(
-            "dateEvent",
-            "",
-        ),
+        "league": event.get("strLeague", ""),
+        "date": event.get("dateEvent", ""),
     }
 
 
-def build_form(
-    matches,
-    team_name,
-):
+def build_form(matches, team_name):
     wins = 0
     draws = 0
     losses = 0
-
     goals_for = 0
     goals_against = 0
-
     recent_matches = []
 
     for event in matches:
-        match = convert_event(
-            event,
-            team_name,
-        )
+        match = convert_event(event, team_name)
 
         if not match:
             continue
 
-        recent_matches.append(
-            match
-        )
-
-        goals_for += match[
-            "goals_for"
-        ]
-
-        goals_against += match[
-            "goals_against"
-        ]
+        recent_matches.append(match)
+        goals_for += match["goals_for"]
+        goals_against += match["goals_against"]
 
         if match["result"] == "win":
             wins += 1
-
         elif match["result"] == "draw":
             draws += 1
-
         else:
             losses += 1
 
-    played = (
-        wins
-        + draws
-        + losses
-    )
+    played = wins + draws + losses
 
-    fallback_available = (
-        team_name
-        in FALLBACK_FORMS
-    )
-
-    use_fallback = (
-        played < 5
-        and fallback_available
-    )
+    fallback_available = team_name in FALLBACK_FORMS
+    use_fallback = played < 5 and fallback_available
 
     if use_fallback:
         print(
@@ -976,89 +458,42 @@ def build_form(
             flush=True,
         )
 
-        fallback = (
-            FALLBACK_FORMS[
-                team_name
-            ].copy()
-        )
-
-        fallback["recent"] = (
-            recent_matches[:5]
-        )
-
-        fallback["data_source"] = (
-            "fallback"
-        )
-
+        fallback = FALLBACK_FORMS[team_name].copy()
+        fallback["recent"] = recent_matches[:5]
+        fallback["data_source"] = "fallback"
         return fallback
 
-    average_goals_for = (
-        round(
-            goals_for / played,
-            2,
-        )
-        if played
-        else 0
-    )
-
-    average_goals_against = (
-        round(
-            goals_against / played,
-            2,
-        )
-        if played
-        else 0
-    )
+    average_goals_for = round(goals_for / played, 2) if played else 0
+    average_goals_against = round(goals_against / played, 2) if played else 0
 
     return {
         "matches": played,
-        "points": (
-            wins * 3
-            + draws
-        ),
+        "points": wins * 3 + draws,
         "wins": wins,
         "draws": draws,
         "losses": losses,
         "goals_for": goals_for,
         "goals_against": goals_against,
-        "avg_goals_for": (
-            average_goals_for
-        ),
-        "avg_goals_against": (
-            average_goals_against
-        ),
-        "recent": (
-            recent_matches[:5]
-        ),
+        "avg_goals_for": average_goals_for,
+        "avg_goals_against": average_goals_against,
+        "recent": recent_matches[:5],
         "data_source": "api",
     }
 
-def get_match_data(
-    team1,
-    team2,
-):
-    team1_data = search_team(
-        team1
-    )
 
-    team2_data = search_team(
-        team2
-    )
+def get_match_data(team1, team2):
+    team1_data = search_team(team1)
+    team2_data = search_team(team2)
 
-    if (
-        not team1_data.get("id")
-        or not team2_data.get("id")
-    ):
+    if not team1_data.get("id") or not team2_data.get("id"):
         raise LookupError(
-            "One of the teams "
-            "does not have a valid ID."
+            "One of the teams does not have a valid ID."
         )
 
     team1_matches = get_last_matches(
         team1_data["id"],
         count=10,
     )
-
     team2_matches = get_last_matches(
         team2_data["id"],
         count=10,
@@ -1068,7 +503,6 @@ def get_match_data(
         team1_matches,
         team1_data["name"],
     )
-
     team2_form = build_form(
         team2_matches,
         team2_data["name"],
@@ -1080,7 +514,6 @@ def get_match_data(
         team1_form,
         flush=True,
     )
-
     print(
         "FORM_DEBUG:",
         team2_data["name"],
@@ -1089,16 +522,168 @@ def get_match_data(
     )
 
     return {
-        "source": (
-            "TheSportsDB "
-            "+ FLUX fallback"
-        ),
-        "team1": (
-            team1_data["name"]
-        ),
-        "team2": (
-            team2_data["name"]
-        ),
+        "source": "TheSportsDB + FLUX fallback",
+        "team1": team1_data["name"],
+        "team2": team2_data["name"],
         "team1_form": team1_form,
         "team2_form": team2_form,
     }
+
+
+def get_football_games_by_date(target_date):
+    """
+    Получает футбольные матчи на конкретную дату.
+
+    target_date:
+    - объект date
+    - или строка YYYY-MM-DD
+    """
+    if isinstance(target_date, date):
+        date_text = target_date.isoformat()
+    else:
+        date_text = str(target_date).strip()
+
+    payload = api_get(
+        "eventsday.php",
+        {
+            "d": date_text,
+            "s": "Soccer",
+        },
+    )
+
+    events = payload.get("events") or []
+    prepared_games = []
+
+    for event in events:
+        home_team = str(
+            event.get("strHomeTeam") or ""
+        ).strip()
+        away_team = str(
+            event.get("strAwayTeam") or ""
+        ).strip()
+
+        if not home_team or not away_team:
+            continue
+
+        event_date = (
+            event.get("dateEvent")
+            or date_text
+        )
+
+        event_time = (
+            event.get("strTime")
+            or event.get("strTimestamp")
+            or ""
+        )
+
+        prepared_games.append(
+            {
+                "id": event.get("idEvent"),
+                "date": event_date,
+                "time": event_time,
+                "timestamp": event.get(
+                    "strTimestamp",
+                    "",
+                ),
+                "status": event.get(
+                    "strStatus",
+                    "",
+                ),
+                "league": event.get(
+                    "strLeague",
+                    "",
+                ),
+                "country": event.get(
+                    "strCountry",
+                    "",
+                ),
+                "season": event.get(
+                    "strSeason",
+                    "",
+                ),
+                "home_team": home_team,
+                "away_team": away_team,
+                "match_text": (
+                    f"{home_team} - "
+                    f"{away_team}"
+                ),
+            }
+        )
+
+    prepared_games.sort(
+        key=lambda item: (
+            item.get("timestamp")
+            or item.get("time")
+            or item.get("match_text")
+            or ""
+        )
+    )
+
+    return prepared_games
+
+
+def get_today_football_games(max_games=20):
+    """
+    Возвращает футбольные матчи на сегодня.
+    """
+    return get_football_games_by_date(
+        date.today()
+    )[:max_games]
+
+
+def get_upcoming_football_games(
+    search_days=14,
+    max_games=10,
+):
+    """
+    Ищет ближайший день, в котором есть футбольные матчи.
+
+    Сначала проверяет сегодня, затем следующие дни.
+    """
+    today = date.today()
+
+    for day_offset in range(search_days + 1):
+        target_date = today + timedelta(days=day_offset)
+
+        try:
+            games = get_football_games_by_date(
+                target_date
+            )
+
+        except Exception as error:
+            print(
+                "FOOTBALL_SCHEDULE_ERROR:",
+                target_date.isoformat(),
+                repr(error),
+                flush=True,
+            )
+            continue
+
+        if games:
+            return {
+                "date": target_date.isoformat(),
+                "is_today": day_offset == 0,
+                "days_until": day_offset,
+                "games": games[:max_games],
+                "source": "TheSportsDB",
+            }
+
+    return {
+        "date": None,
+        "is_today": False,
+        "days_until": None,
+        "games": [],
+        "source": "TheSportsDB",
+    }
+
+
+__all__ = [
+    "search_team",
+    "get_last_matches",
+    "convert_event",
+    "build_form",
+    "get_match_data",
+    "get_football_games_by_date",
+    "get_today_football_games",
+    "get_upcoming_football_games",
+]
