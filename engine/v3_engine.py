@@ -42,35 +42,12 @@ def calculate_team_rating(
             "data_quality": 0,
         }
 
-    points = form.get(
-        "points",
-        0,
-    )
-
-    wins = form.get(
-        "wins",
-        0,
-    )
-
-    draws = form.get(
-        "draws",
-        0,
-    )
-
-    losses = form.get(
-        "losses",
-        0,
-    )
-
-    goals_for = form.get(
-        "goals_for",
-        0,
-    )
-
-    goals_against = form.get(
-        "goals_against",
-        0,
-    )
+    points = form.get("points", 0)
+    wins = form.get("wins", 0)
+    draws = form.get("draws", 0)
+    losses = form.get("losses", 0)
+    goals_for = form.get("goals_for", 0)
+    goals_against = form.get("goals_against", 0)
 
     avg_for = form.get(
         "avg_goals_for",
@@ -167,18 +144,10 @@ def calculate_probabilities(
     team1_rating,
     team2_rating,
 ):
-    rating1 = team1_rating[
-        "rating"
-    ]
+    rating1 = team1_rating["rating"]
+    rating2 = team2_rating["rating"]
 
-    rating2 = team2_rating[
-        "rating"
-    ]
-
-    difference = (
-        rating1 - rating2
-    )
-
+    difference = rating1 - rating2
     absolute_difference = abs(
         difference
     )
@@ -190,9 +159,7 @@ def calculate_probabilities(
         33,
     )
 
-    available = (
-        100 - draw
-    )
+    available = 100 - draw
 
     home_win = (
         available / 2
@@ -221,9 +188,7 @@ def calculate_probabilities(
         + draw
     )
 
-    correction = (
-        100 - total
-    )
+    correction = 100 - total
 
     if correction:
         if home_win >= away_win:
@@ -326,21 +291,13 @@ def calculate_totals(
             2,
         ),
         "over_1_5": over_15,
-        "under_1_5": (
-            100 - over_15
-        ),
+        "under_1_5": 100 - over_15,
         "over_2_5": over_25,
-        "under_2_5": (
-            100 - over_25
-        ),
+        "under_2_5": 100 - over_25,
         "over_3_5": over_35,
-        "under_3_5": (
-            100 - over_35
-        ),
+        "under_3_5": 100 - over_35,
         "btts_yes": btts_yes,
-        "btts_no": (
-            100 - btts_yes
-        ),
+        "btts_no": 100 - btts_yes,
     }
 
 
@@ -372,6 +329,7 @@ def calculate_double_chance(
 def predict_score(
     team1_form,
     team2_form,
+    probabilities,
 ):
     team1_expected = (
         team1_form.get(
@@ -407,6 +365,43 @@ def predict_score(
         5,
     )
 
+    p1 = probabilities["p1"]
+    draw = probabilities["draw"]
+    p2 = probabilities["p2"]
+
+    strongest_outcome = max(
+        ("p1", p1),
+        ("draw", draw),
+        ("p2", p2),
+        key=lambda item: item[1],
+    )[0]
+
+    if strongest_outcome == "p1":
+        if team1_goals <= team2_goals:
+            team1_goals = min(
+                5,
+                team2_goals + 1,
+            )
+
+    elif strongest_outcome == "p2":
+        if team2_goals <= team1_goals:
+            team2_goals = min(
+                5,
+                team1_goals + 1,
+            )
+
+    else:
+        equal_goals = clamp(
+            (
+                team1_expected
+                + team2_expected
+            ) / 2,
+            0,
+            4,
+        )
+        team1_goals = equal_goals
+        team2_goals = equal_goals
+
     return {
         "team1_goals": team1_goals,
         "team2_goals": team2_goals,
@@ -415,6 +410,7 @@ def predict_score(
             f"{team2_goals}"
         ),
     }
+
 
 def choose_best_pick(
     probabilities,
@@ -561,14 +557,25 @@ def calculate_risk(
     )
 
     confidence = clamp(
-        value * 0.62
-        + data_quality * 0.18
+        value * 0.45
+        + data_quality * 0.35
         + rating_difference * 0.20,
-        35,
+        20,
         92,
     )
 
-    if data_quality < 30:
+    if data_quality < 25:
+        confidence = min(
+            confidence,
+            45,
+        )
+        risk = "high"
+
+    elif data_quality < 40:
+        confidence = min(
+            confidence,
+            55,
+        )
         risk = "high"
 
     elif confidence >= 75:
@@ -593,25 +600,19 @@ def analyze_v3(
     team1_form,
     team2_form,
 ):
-    team1_rating = (
-        calculate_team_rating(
-            team1_form,
-            home_advantage=True,
-        )
+    team1_rating = calculate_team_rating(
+        team1_form,
+        home_advantage=True,
     )
 
-    team2_rating = (
-        calculate_team_rating(
-            team2_form,
-            home_advantage=False,
-        )
+    team2_rating = calculate_team_rating(
+        team2_form,
+        home_advantage=False,
     )
 
-    probabilities = (
-        calculate_probabilities(
-            team1_rating,
-            team2_rating,
-        )
+    probabilities = calculate_probabilities(
+        team1_rating,
+        team2_rating,
     )
 
     totals = calculate_totals(
@@ -621,17 +622,14 @@ def analyze_v3(
         team2_rating,
     )
 
-    double_chance = (
-        calculate_double_chance(
-            probabilities
-        )
+    double_chance = calculate_double_chance(
+        probabilities
     )
 
-    predicted_score = (
-        predict_score(
-            team1_form,
-            team2_form,
-        )
+    predicted_score = predict_score(
+        team1_form,
+        team2_form,
+        probabilities,
     )
 
     best_pick = choose_best_pick(
@@ -657,8 +655,22 @@ def analyze_v3(
         "predicted_score": predicted_score,
         "best_pick": best_pick,
         "risk": risk_data["risk"],
-        "confidence": risk_data["confidence"],
-        "data_quality": (
-            risk_data["data_quality"]
-        ),
+        "confidence": risk_data[
+            "confidence"
+        ],
+        "data_quality": risk_data[
+            "data_quality"
+        ],
     }
+
+
+__all__ = [
+    "analyze_v3",
+    "calculate_team_rating",
+    "calculate_probabilities",
+    "calculate_totals",
+    "calculate_double_chance",
+    "predict_score",
+    "choose_best_pick",
+    "calculate_risk",
+]
