@@ -1,4 +1,5 @@
 import os
+import secrets
 from threading import Thread
 
 import requests
@@ -9,7 +10,6 @@ from database.db import (
     add_user,
     free_limit_message,
     get_admin_stats,
-    get_predictions,
     get_today_usage,
     get_user,
     get_user_language,
@@ -31,9 +31,14 @@ CHANNEL_URL = "https://t.me/FluxAIDaily"
 CHANNEL_USERNAME = "@FluxAIDaily"
 
 # Временно 10 для тестирования NBA. После успешного теста вернуть 2.
-FREE_DAILY_LIMIT = 2
+FREE_DAILY_LIMIT = 10
 PRO_PRICE_STARS = 500
 PRO_DAYS = 30
+
+MAX_SCHEDULE_GAMES = 10
+SCHEDULE_SEARCH_DAYS = 14
+SCHEDULE_CACHE = {}
+MAX_CACHE_ITEMS = 500
 
 app = Flask(__name__)
 init_db()
@@ -93,6 +98,7 @@ def main_menu(language="ru"):
     if language == "en":
         keyboard = [
             ["⚽ Football", "🏀 NBA"],
+            ["📅 Today’s Games"],
             ["⚽ Analyze Match"],
             ["🏆 Top 3 Today", "🌍 World Cup 2026"],
             ["📈 Results"],
@@ -104,6 +110,7 @@ def main_menu(language="ru"):
     else:
         keyboard = [
             ["⚽ Футбол", "🏀 NBA"],
+            ["📅 Матчи сегодня"],
             ["⚽ Анализ матча"],
             ["🏆 ТОП-3 дня", "🌍 ЧМ-2026"],
             ["📈 Результаты"],
@@ -218,136 +225,34 @@ def admin_panel_message(language="ru"):
     )
 
 
-def profile_message(
-    user_id,
-    language="ru",
-):
+def profile_message(user_id, language="ru"):
     user = get_user(user_id)
-
     if not user:
-        if language == "en":
-            return (
-                "👤 Profile not found. "
-                "Press /start."
-            )
-
-        return (
-            "👤 Профиль не найден. "
-            "Нажми /start."
-        )
+        return "👤 Profile not found. Press /start." if language == "en" else "👤 Профиль не найден. Нажми /start."
 
     pro_active = is_pro(user_id)
     sport = get_user_sport(user_id)
     usage = get_today_usage(user_id)
 
-    predictions = get_predictions(
-        user_id,
-        limit=5,
-    )
-
     if language == "en":
-        pro_status = (
-            "✅ Active"
-            if pro_active
-            else "❌ Inactive"
-        )
-
-        sport_text = (
-            "🏀 NBA"
-            if sport == "nba"
-            else "⚽ Football"
-        )
-    else:
-        pro_status = (
-            "✅ Активен"
-            if pro_active
-            else "❌ Не активен"
-        )
-
-        sport_text = (
-            "🏀 NBA"
-            if sport == "nba"
-            else "⚽ Футбол"
-        )
-
-    if pro_active:
-        limit_text = (
-            "Unlimited"
-            if language == "en"
-            else "Безлимит"
-        )
-    else:
-        if language == "en":
-            limit_text = (
-                f"{usage}/"
-                f"{FREE_DAILY_LIMIT} today"
-            )
-        else:
-            limit_text = (
-                f"{usage}/"
-                f"{FREE_DAILY_LIMIT} сегодня"
-            )
-
-    history_lines = []
-
-    for prediction in predictions:
-        match_name = prediction.get(
-            "match_name",
-            "Unknown match",
-        )
-
-        created_at = prediction.get(
-            "created_at"
-        )
-
-        if created_at:
-            date_text = created_at.strftime(
-                "%d.%m %H:%M"
-            )
-        else:
-            date_text = "—"
-
-        history_lines.append(
-            f"• {match_name}\n"
-            f"  🕒 {date_text}"
-        )
-
-    if history_lines:
-        history_text = "\n".join(
-            history_lines
-        )
-    else:
-        history_text = (
-            "No analyses yet."
-            if language == "en"
-            else "Анализов пока нет."
-        )
-
-    if language == "en":
+        pro_status = "✅ Active" if pro_active else "❌ Inactive"
+        sport_text = "🏀 NBA" if sport == "nba" else "⚽ Football"
+        limit_text = "Unlimited" if pro_active else f"{usage}/{FREE_DAILY_LIMIT} today"
         return (
-            "👤 MY PROFILE\n\n"
-            "━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🆔 ID: {user_id}\n\n"
-            f"💎 FLUX PRO: {pro_status}\n"
-            f"🎯 Selected sport: {sport_text}\n\n"
-            "📊 Statistics:\n"
-            f"• Analyses today: {limit_text}\n\n"
-            "🕘 Recent analyses:\n"
-            f"{history_text}\n\n"
-            "🚀 FLUX AI v3.1"
+            "👤 MY PROFILE\n\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"🆔 ID: {user_id}\n\n💎 FLUX PRO: {pro_status}\n"
+            f"🎯 Selected sport: {sport_text}\n\n📊 Statistics:\n"
+            f"• Analyses today: {limit_text}\n• Winning predictions: coming soon\n\n🚀 FLUX AI v3.1"
         )
 
+    pro_status = "✅ Активен" if pro_active else "❌ Не активен"
+    sport_text = "🏀 NBA" if sport == "nba" else "⚽ Футбол"
+    limit_text = "Безлимит" if pro_active else f"{usage}/{FREE_DAILY_LIMIT} сегодня"
     return (
-        "👤 МОЙ ПРОФИЛЬ\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🆔 ID: {user_id}\n\n"
-        f"💎 FLUX PRO: {pro_status}\n"
-        f"🎯 Выбранный спорт: {sport_text}\n\n"
-        "📊 Статистика:\n"
-        f"• Анализы сегодня: {limit_text}\n\n"
-        "🕘 Последние анализы:\n"
-        f"{history_text}\n\n"
-        "🚀 FLUX AI v3.1"
+        "👤 МОЙ ПРОФИЛЬ\n\n━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🆔 ID: {user_id}\n\n💎 FLUX PRO: {pro_status}\n"
+        f"🎯 Выбранный спорт: {sport_text}\n\n📊 Статистика:\n"
+        f"• Анализы сегодня: {limit_text}\n• Победных прогнозов: скоро\n\n🚀 FLUX AI v3.1"
     )
 
 
@@ -496,6 +401,147 @@ def handle_analysis(chat_id, user_id, text, language="ru"):
         send_message(chat_id, error_text, reply_markup=main_menu(language))
 
 
+def clear_old_schedule_cache():
+    while len(SCHEDULE_CACHE) > MAX_CACHE_ITEMS:
+        oldest_key = next(iter(SCHEDULE_CACHE))
+        SCHEDULE_CACHE.pop(oldest_key, None)
+
+
+def cache_schedule_game(user_id, sport, team1, team2):
+    token = secrets.token_urlsafe(6)
+    SCHEDULE_CACHE[token] = {
+        "user_id": user_id,
+        "sport": sport,
+        "team1": team1,
+        "team2": team2,
+    }
+    clear_old_schedule_cache()
+    return token
+
+
+def build_schedule_keyboard(user_id, sport, games, language):
+    rows = []
+
+    for game in games[:MAX_SCHEDULE_GAMES]:
+        if sport == "nba":
+            team1 = game.get("home_team", "")
+            team2 = game.get("visitor_team", "")
+            time_text = game.get("status") or ""
+        else:
+            team1 = game.get("home_team", "")
+            team2 = game.get("away_team", "")
+            time_text = game.get("time") or ""
+
+        if not team1 or not team2:
+            continue
+
+        token = cache_schedule_game(user_id, sport, team1, team2)
+        button_text = f"{team1} — {team2}"
+
+        if time_text:
+            button_text = f"{time_text} | {button_text}"
+
+        if len(button_text) > 60:
+            button_text = button_text[:57] + "..."
+
+        rows.append([{
+            "text": button_text,
+            "callback_data": f"game_{token}",
+        }])
+
+    back_text = "↩️ Main menu" if language == "en" else "↩️ Главное меню"
+    rows.append([{
+        "text": back_text,
+        "callback_data": "schedule_back",
+    }])
+
+    return {"inline_keyboard": rows}
+
+
+def schedule_header(sport, schedule, language):
+    date_text = schedule.get("date") or "—"
+    is_today = schedule.get("is_today", False)
+
+    if sport == "nba":
+        sport_title = "NBA"
+    else:
+        sport_title = "Football" if language == "en" else "Футбол"
+
+    if language == "en":
+        day_text = "Today" if is_today else "Nearest game day"
+        return (
+            f"📅 {sport_title} | {day_text}\n\n"
+            f"Date: {date_text}\n"
+            "Tap a game to start the analysis."
+        )
+
+    day_text = "Сегодня" if is_today else "Ближайший игровой день"
+    return (
+        f"📅 {sport_title} | {day_text}\n\n"
+        f"Дата: {date_text}\n"
+        "Нажми на матч, чтобы запустить анализ."
+    )
+
+
+def send_today_games(chat_id, user_id, language):
+    sport = get_user_sport(user_id)
+
+    try:
+        if sport == "nba":
+            from providers.nba_provider import get_upcoming_nba_games
+
+            schedule = get_upcoming_nba_games(
+                search_days=SCHEDULE_SEARCH_DAYS,
+                max_games=MAX_SCHEDULE_GAMES,
+            )
+        else:
+            from providers.thesportsdb import get_upcoming_football_games
+
+            schedule = get_upcoming_football_games(
+                search_days=SCHEDULE_SEARCH_DAYS,
+                max_games=MAX_SCHEDULE_GAMES,
+            )
+
+        games = schedule.get("games") or []
+
+        if not games:
+            if language == "en":
+                text = (
+                    "📅 No upcoming games were found in the next "
+                    f"{SCHEDULE_SEARCH_DAYS} days."
+                )
+            else:
+                text = (
+                    f"📅 В ближайшие {SCHEDULE_SEARCH_DAYS} дней "
+                    "матчи не найдены."
+                )
+
+            send_message(chat_id, text, reply_markup=main_menu(language))
+            return
+
+        keyboard = build_schedule_keyboard(
+            user_id,
+            sport,
+            games,
+            language,
+        )
+
+        send_message(
+            chat_id,
+            schedule_header(sport, schedule, language),
+            reply_markup=keyboard,
+        )
+
+    except Exception as error:
+        print("TODAY_GAMES_ERROR:", repr(error), flush=True)
+        error_text = (
+            "⚠️ Could not load the game schedule right now. Please try again later."
+            if language == "en"
+            else "⚠️ Сейчас не получилось загрузить расписание. Попробуй немного позже."
+        )
+        send_message(chat_id, error_text, reply_markup=main_menu(language))
+
+
 def parse_invoice_user_id(invoice_payload):
     prefix = "flux_pro_30_days:"
     invoice_payload = str(invoice_payload)
@@ -567,6 +613,39 @@ def process_callback_query(callback_query):
         answer_callback_query(callback_id, "Язык изменён на русский.")
         send_message(chat_id, start_message("ru"), reply_markup=main_menu("ru"))
         return
+
+    language = get_user_language(user_id)
+
+    if data == "schedule_back":
+        answer_callback_query(callback_id)
+        send_message(chat_id, start_message(language), reply_markup=main_menu(language))
+        return
+
+    if data.startswith("game_"):
+        token = data[len("game_"):]
+        game_data = SCHEDULE_CACHE.get(token)
+
+        if not game_data or game_data.get("user_id") != user_id:
+            message_text = (
+                "This game button has expired. Open Today’s Games again."
+                if language == "en"
+                else "Эта кнопка матча устарела. Открой «Матчи сегодня» ещё раз."
+            )
+            answer_callback_query(callback_id, message_text)
+            return
+
+        sport = game_data["sport"]
+        team1 = game_data["team1"]
+        team2 = game_data["team2"]
+
+        set_user_sport(user_id, sport)
+        answer_callback_query(
+            callback_id,
+            "Starting analysis..." if language == "en" else "Запускаю анализ...",
+        )
+        handle_analysis(chat_id, user_id, f"{team1} - {team2}", language)
+        return
+
     answer_callback_query(callback_id)
 
 
@@ -647,6 +726,8 @@ def telegram_webhook():
             return "OK", 200
 
         button_commands = {
+            "📅 Матчи сегодня": "/games", "📅 Today’s Games": "/games",
+            "📅 Today's Games": "/games",
             "🏆 ТОП-3 дня": "/today", "🏆 Top 3 Today": "/today",
             "🌍 ЧМ-2026": "/worldcup", "🌍 World Cup 2026": "/worldcup",
             "📈 Результаты": "/results", "📈 Results": "/results",
@@ -660,6 +741,9 @@ def telegram_webhook():
 
         if text in ["/help", "/analyze"]:
             send_message(chat_id, help_message(language), reply_markup=main_menu(language))
+            return "OK", 200
+        if text == "/games":
+            send_today_games(chat_id, user_id, language)
             return "OK", 200
         if text == "/about":
             send_message(chat_id, about_message(language), reply_markup=main_menu(language))
@@ -734,4 +818,3 @@ def set_webhook():
 if __name__ == "__main__":
     Thread(target=set_webhook, daemon=True).start()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "10000")))
-    
