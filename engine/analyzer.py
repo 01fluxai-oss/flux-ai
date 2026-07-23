@@ -202,6 +202,17 @@ def build_ai_comment(
     over_25 = totals["over_2_5"]
     btts_yes = totals["btts_yes"]
 
+    data_quality = int(
+        result.get(
+            "data_quality",
+            0,
+        )
+    )
+
+    preliminary = (
+        data_quality < 25
+    )
+
     lines = [
         "🧠 FLUX AI Coach",
         "━━━━━━━━━━━━━━━━━━━━",
@@ -222,12 +233,10 @@ def build_ai_comment(
             lines.append(
                 f"✅ {team1} is in better form."
             )
-
         elif form2 > form1 + 5:
             lines.append(
                 f"✅ {team2} is in better form."
             )
-
         else:
             lines.append(
                 "⚖️ The teams are in similar form."
@@ -242,12 +251,10 @@ def build_ai_comment(
             lines.append(
                 f"🔥 {team1}'s attack looks stronger."
             )
-
         elif attack2 > attack1 + 5:
             lines.append(
                 f"🔥 {team2}'s attack looks stronger."
             )
-
         else:
             lines.append(
                 "⚖️ Attacking potential is similar."
@@ -262,12 +269,10 @@ def build_ai_comment(
             lines.append(
                 f"🧱 {team1}'s defense looks stronger."
             )
-
         elif defense2 > defense1 + 5:
             lines.append(
                 f"🧱 {team2}'s defense looks stronger."
             )
-
         else:
             lines.append(
                 "⚖️ Defensive strength is similar."
@@ -277,15 +282,12 @@ def build_ai_comment(
 
         if over_25 >= 70:
             lines.append(
-                "⚽ The model expects a "
-                "high-scoring game."
+                "⚽ The model expects a high-scoring game."
             )
-
         elif over_25 <= 40:
             lines.append(
                 "⚽ The model expects a cautious game."
             )
-
         else:
             lines.append(
                 "⚽ An open game is possible."
@@ -293,15 +295,20 @@ def build_ai_comment(
 
         if btts_yes >= 65:
             lines.append(
-                "🥅 There is a strong chance "
-                "both teams score."
+                "🥅 There is a strong chance both teams score."
             )
+
+        title = (
+            "⚠️ Preliminary Option"
+            if preliminary
+            else "⭐ Main Recommendation"
+        )
 
         lines.extend([
             "",
             "━━━━━━━━━━━━━━━━━━━━",
             "",
-            "⭐ Main Recommendation",
+            title,
             f"👉 {pick_label(main_pick, language)}",
             f"🎯 Probability: {main_value}%",
         ])
@@ -321,16 +328,13 @@ def build_ai_comment(
         lines.append(
             f"✅ {team1} находится в лучшей форме."
         )
-
     elif form2 > form1 + 5:
         lines.append(
             f"✅ {team2} находится в лучшей форме."
         )
-
     else:
         lines.append(
-            "⚖️ Команды находятся примерно "
-            "в одинаковой форме."
+            "⚖️ Команды находятся примерно в одинаковой форме."
         )
 
     lines.extend([
@@ -342,16 +346,13 @@ def build_ai_comment(
         lines.append(
             f"🔥 Атака {team1} выглядит опаснее."
         )
-
     elif attack2 > attack1 + 5:
         lines.append(
             f"🔥 Атака {team2} выглядит опаснее."
         )
-
     else:
         lines.append(
-            "⚖️ Атакующий потенциал "
-            "примерно одинаковый."
+            "⚖️ Атакующий потенциал примерно одинаковый."
         )
 
     lines.extend([
@@ -363,12 +364,10 @@ def build_ai_comment(
         lines.append(
             f"🧱 Защита {team1} выглядит надежнее."
         )
-
     elif defense2 > defense1 + 5:
         lines.append(
             f"🧱 Защита {team2} выглядит надежнее."
         )
-
     else:
         lines.append(
             "⚖️ Защита команд примерно одинаковая."
@@ -378,15 +377,12 @@ def build_ai_comment(
 
     if over_25 >= 70:
         lines.append(
-            "⚽ Модель ожидает большое "
-            "количество голов."
+            "⚽ Модель ожидает большое количество голов."
         )
-
     elif over_25 <= 40:
         lines.append(
             "⚽ Ожидается осторожный матч."
         )
-
     else:
         lines.append(
             "⚽ Возможен открытый футбол."
@@ -397,11 +393,17 @@ def build_ai_comment(
             "🥅 Высока вероятность обмена голами."
         )
 
+    title = (
+        "⚠️ Предварительный вариант"
+        if preliminary
+        else "⭐ Главная рекомендация"
+    )
+
     lines.extend([
         "",
         "━━━━━━━━━━━━━━━━━━━━",
         "",
-        "⭐ Главная рекомендация",
+        title,
         f"👉 {pick_label(main_pick, language)}",
         f"🎯 Вероятность: {main_value}%",
     ])
@@ -511,22 +513,13 @@ def format_analysis(
     if top_3:
         main_pick = top_3[0][0]
         main_value = top_3[0][1]
-
     else:
-        main_pick = result[
-            "best_pick"
-        ]["pick"]
-
-        main_value = result[
-            "best_pick"
-        ]["value"]
+        main_pick = result["best_pick"]["pick"]
+        main_value = result["best_pick"]["value"]
 
     confidence = int(
         result["confidence"]
     )
-
-    if confidence <= 10:
-        confidence *= 10
 
     team1_rating = result[
         "team1_rating"
@@ -545,12 +538,10 @@ def format_analysis(
         power_text = (
             f"{team1} +{power_diff}"
         )
-
     elif power_diff < 0:
         power_text = (
             f"{team2} +{abs(power_diff)}"
         )
-
     else:
         power_text = (
             "Equal balance"
@@ -560,13 +551,6 @@ def format_analysis(
 
     top_3_text = format_top_3(
         result["best_pick"],
-        language,
-    )
-
-    ai_comment = build_ai_comment(
-        result,
-        main_pick,
-        main_value,
         language,
     )
 
@@ -592,10 +576,8 @@ def format_analysis(
         "FLUX AI",
     )
 
-    fallback_count = (
-        data_source.count(
-            "FLUX fallback"
-        )
+    fallback_count = data_source.count(
+        "FLUX fallback"
     )
 
     if fallback_count >= 2:
@@ -603,27 +585,74 @@ def format_analysis(
             raw_data_quality,
             55,
         )
-
     elif fallback_count == 1:
         data_quality = min(
             raw_data_quality,
             70,
         )
-
     else:
         data_quality = min(
             raw_data_quality,
             100,
         )
 
+    result["data_quality"] = data_quality
+
     if data_quality >= 80:
         quality_icon = "🟢"
-
     elif data_quality >= 50:
         quality_icon = "🟡"
-
     else:
         quality_icon = "🔴"
+
+    if data_quality < 25:
+        quality_warning = (
+            "⚠️ Very limited data. "
+            "This is a preliminary forecast."
+            if language == "en"
+            else
+            "⚠️ Очень мало данных. "
+            "Прогноз предварительный."
+        )
+        prediction_title = (
+            "⚠️ Preliminary Prediction"
+            if language == "en"
+            else "⚠️ Предварительный прогноз"
+        )
+    elif data_quality < 40:
+        quality_warning = (
+            "⚠️ Low data quality. "
+            "Use this forecast cautiously."
+            if language == "en"
+            else
+            "⚠️ Низкое качество данных. "
+            "Используйте прогноз осторожно."
+        )
+        prediction_title = (
+            "⭐ Main Prediction"
+            if language == "en"
+            else "⭐ Главный прогноз"
+        )
+    else:
+        quality_warning = ""
+        prediction_title = (
+            "⭐ Main Prediction"
+            if language == "en"
+            else "⭐ Главный прогноз"
+        )
+
+    ai_comment = build_ai_comment(
+        result,
+        main_pick,
+        main_value,
+        language,
+    )
+
+    warning_block = (
+        f"\n\n{quality_warning}"
+        if quality_warning
+        else ""
+    )
 
     if language == "en":
         return f"""🏆 FLUX AI PRO
@@ -665,7 +694,7 @@ Away {bar(probabilities["p2"])} {probabilities["p2"]}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
-⭐ Main Prediction
+{prediction_title}
 👉 {main_pick_text}
 
 🎯 Probability:
@@ -673,6 +702,7 @@ Away {bar(probabilities["p2"])} {probabilities["p2"]}%
 
 🧠 AI Confidence:
 {bar(confidence)} {confidence}%
+{warning_block}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -765,7 +795,7 @@ X  {bar(probabilities["draw"])} {probabilities["draw"]}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
-⭐ Главный прогноз
+{prediction_title}
 👉 {main_pick_text}
 
 🎯 Вероятность:
@@ -773,6 +803,7 @@ X  {bar(probabilities["draw"])} {probabilities["draw"]}%
 
 🧠 AI Confidence:
 {bar(confidence)} {confidence}%
+{warning_block}
 
 ━━━━━━━━━━━━━━━━━━━━
 
