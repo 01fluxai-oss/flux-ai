@@ -1,4 +1,5 @@
 # -*- coding: ascii -*-
+# -*- coding: ascii -*-
 import hashlib
 
 
@@ -33,6 +34,18 @@ def build_form(player):
 def format_form(form):
     mapping = {"W": "\U0001f7e2", "L": "\U0001f534"}
     return "".join(mapping[item] for item in form)
+
+
+def form_wins(form):
+    return form.count("W")
+
+
+def verdict_key(probability):
+    if probability <= 54:
+        return "slight"
+    if probability <= 64:
+        return "preliminary"
+    return "main"
 
 
 def analyze_tennis_match(player1, player2, language="ru"):
@@ -75,9 +88,11 @@ def analyze_tennis_match(player1, player2, language="ru"):
 
     if probability1 >= probability2:
         favorite = player1
+        underdog = player2
         favorite_probability = probability1
     else:
         favorite = player2
+        underdog = player1
         favorite_probability = probability2
 
     difference = abs(rating1 - rating2)
@@ -124,6 +139,7 @@ def analyze_tennis_match(player1, player2, language="ru"):
         "probability1": probability1,
         "probability2": probability2,
         "favorite": favorite,
+        "underdog": underdog,
         "favorite_probability": favorite_probability,
         "confidence": confidence,
         "risk": risk,
@@ -133,9 +149,78 @@ def analyze_tennis_match(player1, player2, language="ru"):
         "return_edge": return_edge,
         "surface_edge": surface_edge,
         "h2h_estimate": h2h_estimate,
+        "verdict": verdict_key(favorite_probability),
     }
 
     return format_tennis_analysis(result, language)
+
+
+def coach_lines(result, language="ru"):
+    p1 = result["player1"]
+    p2 = result["player2"]
+    wins1 = form_wins(result["form1"])
+    wins2 = form_wins(result["form2"])
+
+    if language == "en":
+        if wins1 > wins2:
+            form_text = f"{p1} has the stronger model form."
+        elif wins2 > wins1:
+            form_text = f"{p2} has the stronger model form."
+        else:
+            form_text = "The players have similar model form."
+
+        serve_text = f"Serve advantage: {result['serve_edge']}."
+        return_text = f"Return advantage: {result['return_edge']}."
+        surface_text = f"Surface model advantage: {result['surface_edge']}."
+
+        if result["verdict"] == "slight":
+            final_text = (
+                "The match is nearly even. The model gives only a slight edge "
+                f"to {result['favorite']}."
+            )
+        elif result["verdict"] == "preliminary":
+            final_text = (
+                f"{result['favorite']} has a moderate model edge, "
+                "but the forecast remains preliminary."
+            )
+        else:
+            final_text = (
+                f"{result['favorite']} has the clearest model advantage."
+            )
+
+        return form_text, serve_text, return_text, surface_text, final_text
+
+    if wins1 > wins2:
+        form_text = f"{p1} \u0432\u044b\u0433\u043b\u044f\u0434\u0438\u0442 \u0441\u0442\u0430\u0431\u0438\u043b\u044c\u043d\u0435\u0435 \u043f\u043e \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435."
+    elif wins2 > wins1:
+        form_text = f"{p2} \u0432\u044b\u0433\u043b\u044f\u0434\u0438\u0442 \u0441\u0442\u0430\u0431\u0438\u043b\u044c\u043d\u0435\u0435 \u043f\u043e \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435."
+    else:
+        form_text = "\u0418\u0433\u0440\u043e\u043a\u0438 \u043d\u0430\u0445\u043e\u0434\u044f\u0442\u0441\u044f \u0432 \u043f\u043e\u0445\u043e\u0436\u0435\u0439 \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435."
+
+    serve_text = f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u043e\u0434\u0430\u0447\u0435 \u0443 {result['serve_edge']}."
+    return_text = f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u0440\u0438\u0451\u043c\u0435 \u0443 {result['return_edge']}."
+    surface_text = (
+        f"\u041f\u043e \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u043e\u0446\u0435\u043d\u043a\u0435 \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u044f \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u0443 "
+        f"{result['surface_edge']}."
+    )
+
+    if result["verdict"] == "slight":
+        final_text = (
+            "\u041c\u0430\u0442\u0447 \u043f\u0440\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438 \u0440\u0430\u0432\u043d\u044b\u0439. \u041c\u043e\u0434\u0435\u043b\u044c \u0434\u0430\u0451\u0442 \u043b\u0438\u0448\u044c \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u043e\u0435 "
+            f"\u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e {result['favorite']}."
+        )
+    elif result["verdict"] == "preliminary":
+        final_text = (
+            f"{result['favorite']} \u0438\u043c\u0435\u0435\u0442 \u0443\u043c\u0435\u0440\u0435\u043d\u043d\u043e\u0435 \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e, "
+            "\u043d\u043e \u043f\u0440\u043e\u0433\u043d\u043e\u0437 \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u043f\u0440\u0435\u0434\u0432\u0430\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u043c."
+        )
+    else:
+        final_text = (
+            f"{result['favorite']} \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442 \u043d\u0430\u0438\u0431\u043e\u043b\u0435\u0435 \u0437\u0430\u043c\u0435\u0442\u043d\u043e\u0435 "
+            "\u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e."
+        )
+
+    return form_text, serve_text, return_text, surface_text, final_text
 
 
 def format_tennis_analysis(result, language="ru"):
@@ -150,8 +235,27 @@ def format_tennis_analysis(result, language="ru"):
         "high": "High",
     }
 
+    verdict_ru = {
+        "slight": "\u041d\u0435\u0431\u043e\u043b\u044c\u0448\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e",
+        "preliminary": "\u041f\u0440\u0435\u0434\u0432\u0430\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437",
+        "main": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437",
+    }
+    verdict_en = {
+        "slight": "Slight Edge",
+        "preliminary": "Preliminary Prediction",
+        "main": "Main Prediction",
+    }
+
     form1 = format_form(result["form1"])
     form2 = format_form(result["form2"])
+
+    (
+        coach_form,
+        coach_serve,
+        coach_return,
+        coach_surface,
+        coach_final,
+    ) = coach_lines(result, language)
 
     if language == "en":
         return f"""\U0001f3be FLUX AI TENNIS PRO
@@ -176,8 +280,8 @@ def format_tennis_analysis(result, language="ru"):
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-\u2b50 Preliminary Prediction
-\U0001f449 {result["favorite"]} to Win
+\u2b50 {verdict_en[result["verdict"]]}
+\U0001f449 {result["favorite"]}
 
 \U0001f3af Probability:
 {result["favorite_probability"]}%
@@ -209,6 +313,25 @@ def format_tennis_analysis(result, language="ru"):
 
 \U0001f91d Estimated H2H Signal:
 {result["favorite"]} +{result["h2h_estimate"]}
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\U0001f9e0 FLUX AI Tennis Coach
+
+\U0001f4c8 Form
+{coach_form}
+
+\U0001f4a5 Serve
+{coach_serve}
+
+\U0001f3be Return
+{coach_return}
+
+\U0001f3df Surface
+{coach_surface}
+
+\u2696\ufe0f Verdict
+{coach_final}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -251,8 +374,8 @@ Predictions are informational and do not guarantee results.
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-\u2b50 \u041f\u0440\u0435\u0434\u0432\u0430\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437
-\U0001f449 \u041f\u043e\u0431\u0435\u0434\u0430: {result["favorite"]}
+\u2b50 {verdict_ru[result["verdict"]]}
+\U0001f449 {result["favorite"]}
 
 \U0001f3af \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u043e\u0441\u0442\u044c:
 {result["favorite_probability"]}%
@@ -284,6 +407,25 @@ Predictions are informational and do not guarantee results.
 
 \U0001f91d \u041c\u043e\u0434\u0435\u043b\u044c\u043d\u044b\u0439 H2H-\u0441\u0438\u0433\u043d\u0430\u043b:
 {result["favorite"]} +{result["h2h_estimate"]}
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\U0001f9e0 FLUX AI Tennis Coach
+
+\U0001f4c8 \u0424\u043e\u0440\u043c\u0430
+{coach_form}
+
+\U0001f4a5 \u041f\u043e\u0434\u0430\u0447\u0430
+{coach_serve}
+
+\U0001f3be \u041f\u0440\u0438\u0451\u043c
+{coach_return}
+
+\U0001f3df \u041f\u043e\u043a\u0440\u044b\u0442\u0438\u0435
+{coach_surface}
+
+\u2696\ufe0f \u0418\u0442\u043e\u0433
+{coach_final}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
