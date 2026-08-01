@@ -380,12 +380,38 @@ def handle_analysis(chat_id, user_id, text, language="ru"):
     send_message(chat_id, analyzing_text, reply_markup=main_menu(language))
 
     try:
-        if sport_mode == "nba":
-            answer = analyze_nba_text(text, language)
-            sport_prefix = "NBA"
-        else:
-            answer = analyze_match_text(text, language)
-            sport_prefix = "FOOTBALL"
+    if sport_mode == "nba":
+        answer = analyze_nba_text(text, language)
+        sport_prefix = "NBA"
+
+    elif sport_mode == "tennis":
+        separators = [" — ", " - ", " vs ", " v "]
+
+        player1 = None
+        player2 = None
+
+        for separator in separators:
+            if separator in text:
+                parts = text.split(separator, 1)
+
+                if len(parts) == 2:
+                    player1 = parts[0].strip()
+                    player2 = parts[1].strip()
+                    break
+
+        if not player1 or not player2:
+            raise ValueError("Invalid tennis match format")
+
+        answer = analyze_tennis_match(
+            player1,
+            player2,
+            language,
+        )
+        sport_prefix = "TENNIS"
+
+    else:
+        answer = analyze_match_text(text, language)
+        sport_prefix = "FOOTBALL"
 
         send_message(chat_id, answer, reply_markup=main_menu(language))
 
