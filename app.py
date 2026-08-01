@@ -703,27 +703,27 @@ def telegram_webhook():
             return "OK", 200
 
         if text in ["🎾 Теннис", "🎾 Tennis"]:
-           set_user_sport(user_id, "tennis")
+            set_user_sport(user_id, "tennis")
 
-        if language == "en":
-        message_text = (
-            "🎾 Tennis mode selected.\n\n"
-            "Send a match:\n"
-            "Carlos Alcaraz - Jannik Sinner"
-        )
-    else:
-        message_text = (
-            "🎾 Выбран режим тенниса.\n\n"
-            "Отправь матч:\n"
-            "Carlos Alcaraz - Jannik Sinner"
-        )
+            if language == "en":
+             message_text = (
+                 "🎾 Tennis mode selected.\n\n"
+                 "Send a match:\n"
+                 "Carlos Alcaraz - Jannik Sinner"
+             )
+        else:
+             message_text = (
+                 "🎾 Выбран режим тенниса.\n\n"
+                 "Отправь матч:\n"
+                 "Carlos Alcaraz - Jannik Sinner"
+             )
 
         send_message(
-        chat_id,
-        message_text,
-        reply_markup=main_menu(language),
-    )
-    return "OK", 200
+            chat_id,
+            message_text,
+            reply_markup=main_menu(language),
+        )
+        return "OK", 200
 
         if text in ["⚽ Футбол", "⚽ Football"]:
             set_user_sport(user_id, "football")
