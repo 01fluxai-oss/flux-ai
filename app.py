@@ -98,6 +98,7 @@ def main_menu(language="ru"):
     if language == "en":
         keyboard = [
             ["⚽ Football", "🏀 NBA"],
+            ["🎾 Tennis"],
             ["📅 Today’s Games"],
             ["⚽ Analyze Match"],
             ["🏆 Top 3 Today", "🌍 World Cup 2026"],
@@ -110,6 +111,7 @@ def main_menu(language="ru"):
     else:
         keyboard = [
             ["⚽ Футбол", "🏀 NBA"],
+            ["🎾 Теннис"],
             ["📅 Матчи сегодня"],
             ["⚽ Анализ матча"],
             ["🏆 ТОП-3 дня", "🌍 ЧМ-2026"],
