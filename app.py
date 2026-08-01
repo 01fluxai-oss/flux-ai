@@ -110,6 +110,7 @@ def main_menu(language="ru"):
         keyboard = [
             ["\u26bd Football", "\U0001f3c0 NBA"],
             ["\U0001f3be Tennis"],
+            ["\U0001f4c5 Tennis Today"],
             ["\u26bd Analyze Match"],
             ["\U0001f3c6 Top 3 Today", "\U0001f30d World Cup 2026"],
             ["\U0001f4c8 Results"],
@@ -122,6 +123,7 @@ def main_menu(language="ru"):
         keyboard = [
             ["\u26bd \u0424\u0443\u0442\u0431\u043e\u043b", "\U0001f3c0 NBA"],
             ["\U0001f3be \u0422\u0435\u043d\u043d\u0438\u0441"],
+            ["\U0001f4c5 \u0422\u0435\u043d\u043d\u0438\u0441 \u0441\u0435\u0433\u043e\u0434\u043d\u044f"],
             ["\u26bd \u0410\u043d\u0430\u043b\u0438\u0437 \u043c\u0430\u0442\u0447\u0430"],
             ["\U0001f3c6 \u0422\u041e\u041f-3 \u0434\u043d\u044f", "\U0001f30d \u0427\u041c-2026"],
             ["\U0001f4c8 \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b"],
