@@ -1,9 +1,10 @@
 # -*- coding: ascii -*-
-# -*- coding: ascii -*-
 import hashlib
 
+from providers.tennis_provider import TennisAPIError, get_real_tennis_data
 
-DATA_QUALITY = 25
+
+FALLBACK_DATA_QUALITY = 25
 
 
 def clamp(value, minimum=1, maximum=99):
@@ -17,27 +18,64 @@ def stable_number(text, minimum, maximum, salt=""):
     return minimum + number % (maximum - minimum + 1)
 
 
-def build_form(player):
-    symbols = ["W", "W", "W", "L", "L"]
-    digest = hashlib.sha256(
-        f"form:{player}".lower().encode("utf-8")
-    ).hexdigest()
+def safe_rate(wins, losses):
+    wins = int(wins or 0)
+    losses = int(losses or 0)
+    total = wins + losses
 
+    if total <= 0:
+        return None
+
+    return round(wins / total * 100)
+
+
+def rank_score(rank):
+    if not rank:
+        return 50
+
+    rank = max(1, int(rank))
+    return clamp(100 - min(rank, 200) * 0.35, 30, 98)
+
+
+def recent_score(recent):
+    win_rate = recent.get("win_rate")
+
+    if win_rate is None:
+        return 50
+
+    return clamp(win_rate, 25, 90)
+
+
+def surface_score(stats, surface="hard"):
+    won = int(stats.get(f"{surface}_won") or 0)
+    lost = int(stats.get(f"{surface}_lost") or 0)
+    rate = safe_rate(won, lost)
+
+    if rate is None:
+        return 50
+
+    return clamp(rate, 25, 90)
+
+
+def build_real_form(recent):
     form = []
-    for index in range(5):
-        value = int(digest[index * 2:index * 2 + 2], 16)
-        form.append(symbols[value % len(symbols)])
+
+    for item in recent.get("matches", [])[:5]:
+        form.append("W" if item.get("won") else "L")
+
+    while len(form) < 5:
+        form.append("?")
 
     return form
 
 
 def format_form(form):
-    mapping = {"W": "\U0001f7e2", "L": "\U0001f534"}
+    mapping = {
+        "W": "\U0001f7e2",
+        "L": "\U0001f534",
+        "?": "\u26aa",
+    }
     return "".join(mapping[item] for item in form)
-
-
-def form_wins(form):
-    return form.count("W")
 
 
 def verdict_key(probability):
@@ -49,178 +87,156 @@ def verdict_key(probability):
 
 
 def analyze_tennis_match(player1, player2, language="ru"):
-    power1 = stable_number(player1, 58, 88, "power")
-    power2 = stable_number(player2, 58, 88, "power")
+    try:
+        real_data = get_real_tennis_data(player1, player2)
+        return analyze_with_real_data(real_data, language)
+    except Exception as error:
+        print("TENNIS_API_FALLBACK:", repr(error), flush=True)
+        return analyze_with_fallback(player1, player2, language)
 
-    serve1 = stable_number(player1, 55, 88, "serve")
-    serve2 = stable_number(player2, 55, 88, "serve")
 
-    return1 = stable_number(player1, 52, 86, "return")
-    return2 = stable_number(player2, 52, 86, "return")
+def analyze_with_real_data(real_data, language="ru"):
+    player1 = real_data["player1"]
+    player2 = real_data["player2"]
 
-    surface_score1 = stable_number(player1, 54, 87, "surface")
-    surface_score2 = stable_number(player2, 54, 87, "surface")
+    recent1 = player1.get("recent") or {}
+    recent2 = player2.get("recent") or {}
 
-    form1 = build_form(player1)
-    form2 = build_form(player2)
+    stats1 = player1.get("season_stats") or {}
+    stats2 = player2.get("season_stats") or {}
 
-    form_score1 = 50 + form1.count("W") * 8
-    form_score2 = 50 + form2.count("W") * 8
-
-    rating1 = (
-        power1 * 0.35
-        + serve1 * 0.20
-        + return1 * 0.20
-        + surface_score1 * 0.15
-        + form_score1 * 0.10
+    power1 = round(
+        rank_score(player1.get("rank")) * 0.45
+        + recent_score(recent1) * 0.35
+        + surface_score(stats1, "hard") * 0.20
     )
-    rating2 = (
-        power2 * 0.35
-        + serve2 * 0.20
-        + return2 * 0.20
-        + surface_score2 * 0.15
-        + form_score2 * 0.10
+    power2 = round(
+        rank_score(player2.get("rank")) * 0.45
+        + recent_score(recent2) * 0.35
+        + surface_score(stats2, "hard") * 0.20
     )
 
-    total_rating = rating1 + rating2
-    probability1 = clamp(rating1 / total_rating * 100, 25, 75)
+    total_power = max(power1 + power2, 1)
+    probability1 = clamp(power1 / total_power * 100, 20, 80)
     probability2 = 100 - probability1
 
     if probability1 >= probability2:
-        favorite = player1
-        underdog = player2
+        favorite = player1["player_name"]
         favorite_probability = probability1
     else:
-        favorite = player2
-        underdog = player1
+        favorite = player2["player_name"]
         favorite_probability = probability2
 
-    difference = abs(rating1 - rating2)
+    difference = abs(power1 - power2)
+    data_quality = clamp(real_data.get("data_quality") or 0, 1, 100)
 
-    raw_confidence = 35 + difference * 0.8
-    confidence_cap = 48 if DATA_QUALITY < 40 else 65
-    confidence = clamp(raw_confidence, 32, confidence_cap)
+    confidence = clamp(
+        30 + difference * 0.9 + data_quality * 0.35,
+        30,
+        88,
+    )
 
-    if DATA_QUALITY < 40:
+    if data_quality < 45:
+        confidence = min(confidence, 48)
         risk = "high"
-    elif confidence >= 65:
+    elif confidence >= 72:
         risk = "low"
-    elif confidence >= 50:
+    elif confidence >= 55:
         risk = "medium"
     else:
         risk = "high"
 
-    predicted_sets = "2:0" if difference >= 15 else "2:1"
+    predicted_sets = "2:0" if difference >= 14 else "2:1"
 
-    serve_edge = player1 if serve1 >= serve2 else player2
-    return_edge = player1 if return1 >= return2 else player2
-    surface_edge = player1 if surface_score1 >= surface_score2 else player2
-
-    h2h_estimate = stable_number(
-        f"{player1}:{player2}",
-        0,
-        4,
-        "h2h",
-    )
+    h2h = real_data.get("h2h") or {}
+    h2h_first = int(h2h.get("first_wins") or 0)
+    h2h_second = int(h2h.get("second_wins") or 0)
 
     result = {
-        "player1": player1,
-        "player2": player2,
-        "power1": clamp(power1),
-        "power2": clamp(power2),
-        "serve1": serve1,
-        "serve2": serve2,
-        "return1": return1,
-        "return2": return2,
-        "surface_score1": surface_score1,
-        "surface_score2": surface_score2,
-        "form1": form1,
-        "form2": form2,
+        "player1": player1["player_name"],
+        "player2": player2["player_name"],
+        "power1": power1,
+        "power2": power2,
         "probability1": probability1,
         "probability2": probability2,
         "favorite": favorite,
-        "underdog": underdog,
         "favorite_probability": favorite_probability,
         "confidence": confidence,
         "risk": risk,
         "predicted_sets": predicted_sets,
-        "data_quality": DATA_QUALITY,
-        "serve_edge": serve_edge,
-        "return_edge": return_edge,
-        "surface_edge": surface_edge,
-        "h2h_estimate": h2h_estimate,
+        "data_quality": data_quality,
+        "form1": build_real_form(recent1),
+        "form2": build_real_form(recent2),
+        "rank1": player1.get("rank"),
+        "rank2": player2.get("rank"),
+        "recent_win_rate1": recent1.get("win_rate"),
+        "recent_win_rate2": recent2.get("win_rate"),
+        "hard_rate1": surface_score(stats1, "hard"),
+        "hard_rate2": surface_score(stats2, "hard"),
+        "h2h_first": h2h_first,
+        "h2h_second": h2h_second,
         "verdict": verdict_key(favorite_probability),
+        "source": "API-Tennis",
+        "is_fallback": False,
     }
 
     return format_tennis_analysis(result, language)
 
 
-def coach_lines(result, language="ru"):
-    p1 = result["player1"]
-    p2 = result["player2"]
-    wins1 = form_wins(result["form1"])
-    wins2 = form_wins(result["form2"])
+def analyze_with_fallback(player1, player2, language="ru"):
+    power1 = stable_number(player1, 58, 88, "power")
+    power2 = stable_number(player2, 58, 88, "power")
 
-    if language == "en":
-        if wins1 > wins2:
-            form_text = f"{p1} has the stronger model form."
-        elif wins2 > wins1:
-            form_text = f"{p2} has the stronger model form."
-        else:
-            form_text = "The players have similar model form."
+    total_power = power1 + power2
+    probability1 = clamp(power1 / total_power * 100, 25, 75)
+    probability2 = 100 - probability1
 
-        serve_text = f"Serve advantage: {result['serve_edge']}."
-        return_text = f"Return advantage: {result['return_edge']}."
-        surface_text = f"Surface model advantage: {result['surface_edge']}."
-
-        if result["verdict"] == "slight":
-            final_text = (
-                "The match is nearly even. The model gives only a slight edge "
-                f"to {result['favorite']}."
-            )
-        elif result["verdict"] == "preliminary":
-            final_text = (
-                f"{result['favorite']} has a moderate model edge, "
-                "but the forecast remains preliminary."
-            )
-        else:
-            final_text = (
-                f"{result['favorite']} has the clearest model advantage."
-            )
-
-        return form_text, serve_text, return_text, surface_text, final_text
-
-    if wins1 > wins2:
-        form_text = f"{p1} \u0432\u044b\u0433\u043b\u044f\u0434\u0438\u0442 \u0441\u0442\u0430\u0431\u0438\u043b\u044c\u043d\u0435\u0435 \u043f\u043e \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435."
-    elif wins2 > wins1:
-        form_text = f"{p2} \u0432\u044b\u0433\u043b\u044f\u0434\u0438\u0442 \u0441\u0442\u0430\u0431\u0438\u043b\u044c\u043d\u0435\u0435 \u043f\u043e \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435."
+    if probability1 >= probability2:
+        favorite = player1
+        favorite_probability = probability1
     else:
-        form_text = "\u0418\u0433\u0440\u043e\u043a\u0438 \u043d\u0430\u0445\u043e\u0434\u044f\u0442\u0441\u044f \u0432 \u043f\u043e\u0445\u043e\u0436\u0435\u0439 \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435."
+        favorite = player2
+        favorite_probability = probability2
 
-    serve_text = f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u043e\u0434\u0430\u0447\u0435 \u0443 {result['serve_edge']}."
-    return_text = f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u0440\u0438\u0451\u043c\u0435 \u0443 {result['return_edge']}."
-    surface_text = (
-        f"\u041f\u043e \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u043e\u0446\u0435\u043d\u043a\u0435 \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u044f \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u0443 "
-        f"{result['surface_edge']}."
-    )
+    difference = abs(power1 - power2)
+    confidence = clamp(35 + difference * 0.8, 32, 48)
 
-    if result["verdict"] == "slight":
-        final_text = (
-            "\u041c\u0430\u0442\u0447 \u043f\u0440\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438 \u0440\u0430\u0432\u043d\u044b\u0439. \u041c\u043e\u0434\u0435\u043b\u044c \u0434\u0430\u0451\u0442 \u043b\u0438\u0448\u044c \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u043e\u0435 "
-            f"\u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e {result['favorite']}."
-        )
-    elif result["verdict"] == "preliminary":
-        final_text = (
-            f"{result['favorite']} \u0438\u043c\u0435\u0435\u0442 \u0443\u043c\u0435\u0440\u0435\u043d\u043d\u043e\u0435 \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e, "
-            "\u043d\u043e \u043f\u0440\u043e\u0433\u043d\u043e\u0437 \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u043f\u0440\u0435\u0434\u0432\u0430\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u043c."
-        )
-    else:
-        final_text = (
-            f"{result['favorite']} \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442 \u043d\u0430\u0438\u0431\u043e\u043b\u0435\u0435 \u0437\u0430\u043c\u0435\u0442\u043d\u043e\u0435 "
-            "\u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e."
-        )
+    result = {
+        "player1": player1,
+        "player2": player2,
+        "power1": power1,
+        "power2": power2,
+        "probability1": probability1,
+        "probability2": probability2,
+        "favorite": favorite,
+        "favorite_probability": favorite_probability,
+        "confidence": confidence,
+        "risk": "high",
+        "predicted_sets": "2:0" if difference >= 15 else "2:1",
+        "data_quality": FALLBACK_DATA_QUALITY,
+        "form1": ["?", "?", "?", "?", "?"],
+        "form2": ["?", "?", "?", "?", "?"],
+        "rank1": None,
+        "rank2": None,
+        "recent_win_rate1": None,
+        "recent_win_rate2": None,
+        "hard_rate1": None,
+        "hard_rate2": None,
+        "h2h_first": 0,
+        "h2h_second": 0,
+        "verdict": verdict_key(favorite_probability),
+        "source": "FLUX fallback",
+        "is_fallback": True,
+    }
 
-    return form_text, serve_text, return_text, surface_text, final_text
+    return format_tennis_analysis(result, language)
+
+
+def format_value(value, suffix=""):
+    if value is None:
+        return "\u2014"
+
+    return f"{value}{suffix}"
 
 
 def format_tennis_analysis(result, language="ru"):
@@ -249,15 +265,13 @@ def format_tennis_analysis(result, language="ru"):
     form1 = format_form(result["form1"])
     form2 = format_form(result["form2"])
 
-    (
-        coach_form,
-        coach_serve,
-        coach_return,
-        coach_surface,
-        coach_final,
-    ) = coach_lines(result, language)
-
     if language == "en":
+        note = (
+            "Live tennis data could not be loaded, so FLUX fallback was used."
+            if result["is_fallback"]
+            else "The model uses live API-Tennis data."
+        )
+
         return f"""\U0001f3be FLUX AI TENNIS PRO
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -267,14 +281,10 @@ def format_tennis_analysis(result, language="ru"):
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
 \u26a1 FLUX Power Index
-
 {result["player1"]}: {result["power1"]}/100
 {result["player2"]}: {result["power2"]}/100
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
 \U0001f4ca Win Probability
-
 {result["player1"]}: {result["probability1"]}%
 {result["player2"]}: {result["probability2"]}%
 
@@ -283,18 +293,8 @@ def format_tennis_analysis(result, language="ru"):
 \u2b50 {verdict_en[result["verdict"]]}
 \U0001f449 {result["favorite"]}
 
-\U0001f3af Probability:
-{result["favorite_probability"]}%
-
-\U0001f9e0 AI Confidence:
-{result["confidence"]}%
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\U0001f3c6 TOP-3 Model Signals
-1. Match winner: {result["favorite"]} \u2014 {result["favorite_probability"]}%
-2. Predicted set score: {result["predicted_sets"]}
-3. Match likely to require 3 sets: {"Yes" if result["predicted_sets"] == "2:1" else "No"}
+\U0001f3af Probability: {result["favorite_probability"]}%
+\U0001f9e0 AI Confidence: {result["confidence"]}%
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -302,55 +302,41 @@ def format_tennis_analysis(result, language="ru"):
 {result["player1"]}: {form1}
 {result["player2"]}: {form2}
 
-\U0001f4a5 Serve Edge:
-{result["serve_edge"]}
+\U0001f3c5 Ranking
+{result["player1"]}: {format_value(result["rank1"], "#")}
+{result["player2"]}: {format_value(result["rank2"], "#")}
 
-\U0001f3be Return Edge:
-{result["return_edge"]}
+\U0001f4ca Recent Win Rate
+{result["player1"]}: {format_value(result["recent_win_rate1"], "%")}
+{result["player2"]}: {format_value(result["recent_win_rate2"], "%")}
 
-\U0001f3df Surface Model Edge:
-{result["surface_edge"]}
+\U0001f3df Hard Court Rate
+{result["player1"]}: {format_value(result["hard_rate1"], "%")}
+{result["player2"]}: {format_value(result["hard_rate2"], "%")}
 
-\U0001f91d Estimated H2H Signal:
-{result["favorite"]} +{result["h2h_estimate"]}
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\U0001f9e0 FLUX AI Tennis Coach
-
-\U0001f4c8 Form
-{coach_form}
-
-\U0001f4a5 Serve
-{coach_serve}
-
-\U0001f3be Return
-{coach_return}
-
-\U0001f3df Surface
-{coach_surface}
-
-\u2696\ufe0f Verdict
-{coach_final}
+\U0001f91d H2H
+{result["player1"]}: {result["h2h_first"]}
+{result["player2"]}: {result["h2h_second"]}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-\U0001f3be Predicted Set Score:
-{result["predicted_sets"]}
-
-\u26a0\ufe0f Risk Level:
-{risk_en[result["risk"]]}
-
-\U0001f9ea Data Quality:
-{result["data_quality"]}%
+\U0001f3be Predicted Set Score: {result["predicted_sets"]}
+\u26a0\ufe0f Risk Level: {risk_en[result["risk"]]}
+\U0001f9ea Data Quality: {result["data_quality"]}%
+\U0001f4e1 Data Source: {result["source"]}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-\u26a0\ufe0f Tennis AI is currently in Beta.
-Form, H2H, serve, return and surface values are model estimates until the live tennis API is connected.
+\u26a0\ufe0f {note}
 
 Predictions are informational and do not guarantee results.
 """
+
+    note = (
+        "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c live-\u0434\u0430\u043d\u043d\u044b, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d FLUX fallback."
+        if result["is_fallback"]
+        else "\u041c\u043e\u0434\u0435\u043b\u044c \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b API-Tennis."
+    )
 
     return f"""\U0001f3be FLUX AI TENNIS PRO
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
@@ -361,14 +347,10 @@ Predictions are informational and do not guarantee results.
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
 \u26a1 FLUX Power Index
-
 {result["player1"]}: {result["power1"]}/100
 {result["player2"]}: {result["power2"]}/100
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
 \U0001f4ca \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u043e\u0441\u0442\u044c \u043f\u043e\u0431\u0435\u0434\u044b
-
 {result["player1"]}: {result["probability1"]}%
 {result["player2"]}: {result["probability2"]}%
 
@@ -377,18 +359,8 @@ Predictions are informational and do not guarantee results.
 \u2b50 {verdict_ru[result["verdict"]]}
 \U0001f449 {result["favorite"]}
 
-\U0001f3af \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u043e\u0441\u0442\u044c:
-{result["favorite_probability"]}%
-
-\U0001f9e0 AI Confidence:
-{result["confidence"]}%
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\U0001f3c6 \u0422\u041e\u041f-3 \u0441\u0438\u0433\u043d\u0430\u043b\u0430 \u043c\u043e\u0434\u0435\u043b\u0438
-1. \u041f\u043e\u0431\u0435\u0434\u0430: {result["favorite"]} \u2014 {result["favorite_probability"]}%
-2. \u0421\u0447\u0451\u0442 \u043f\u043e \u0441\u0435\u0442\u0430\u043c: {result["predicted_sets"]}
-3. \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u044b 3 \u0441\u0435\u0442\u0430: {"\u0414\u0430" if result["predicted_sets"] == "2:1" else "\u041d\u0435\u0442"}
+\U0001f3af \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u043e\u0441\u0442\u044c: {result["favorite_probability"]}%
+\U0001f9e0 AI Confidence: {result["confidence"]}%
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -396,52 +368,32 @@ Predictions are informational and do not guarantee results.
 {result["player1"]}: {form1}
 {result["player2"]}: {form2}
 
-\U0001f4a5 \u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u043e\u0434\u0430\u0447\u0435:
-{result["serve_edge"]}
+\U0001f3c5 \u0420\u0435\u0439\u0442\u0438\u043d\u0433
+{result["player1"]}: {format_value(result["rank1"], "#")}
+{result["player2"]}: {format_value(result["rank2"], "#")}
 
-\U0001f3be \u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u0440\u0438\u0451\u043c\u0435:
-{result["return_edge"]}
+\U0001f4ca \u041f\u0440\u043e\u0446\u0435\u043d\u0442 \u043f\u043e\u0431\u0435\u0434 \u0432 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0445 \u043c\u0430\u0442\u0447\u0430\u0445
+{result["player1"]}: {format_value(result["recent_win_rate1"], "%")}
+{result["player2"]}: {format_value(result["recent_win_rate2"], "%")}
 
-\U0001f3df \u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043d\u0430 \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0438:
-{result["surface_edge"]}
+\U0001f3df \u041f\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u044c \u043d\u0430 hard
+{result["player1"]}: {format_value(result["hard_rate1"], "%")}
+{result["player2"]}: {format_value(result["hard_rate2"], "%")}
 
-\U0001f91d \u041c\u043e\u0434\u0435\u043b\u044c\u043d\u044b\u0439 H2H-\u0441\u0438\u0433\u043d\u0430\u043b:
-{result["favorite"]} +{result["h2h_estimate"]}
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\U0001f9e0 FLUX AI Tennis Coach
-
-\U0001f4c8 \u0424\u043e\u0440\u043c\u0430
-{coach_form}
-
-\U0001f4a5 \u041f\u043e\u0434\u0430\u0447\u0430
-{coach_serve}
-
-\U0001f3be \u041f\u0440\u0438\u0451\u043c
-{coach_return}
-
-\U0001f3df \u041f\u043e\u043a\u0440\u044b\u0442\u0438\u0435
-{coach_surface}
-
-\u2696\ufe0f \u0418\u0442\u043e\u0433
-{coach_final}
+\U0001f91d H2H
+{result["player1"]}: {result["h2h_first"]}
+{result["player2"]}: {result["h2h_second"]}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-\U0001f3be \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u044b\u0439 \u0441\u0447\u0451\u0442 \u043f\u043e \u0441\u0435\u0442\u0430\u043c:
-{result["predicted_sets"]}
-
-\u26a0\ufe0f \u0420\u0438\u0441\u043a:
-{risk_ru[result["risk"]]}
-
-\U0001f9ea \u041a\u0430\u0447\u0435\u0441\u0442\u0432\u043e \u0434\u0430\u043d\u043d\u044b\u0445:
-{result["data_quality"]}%
+\U0001f3be \u0412\u0435\u0440\u043e\u044f\u0442\u043d\u044b\u0439 \u0441\u0447\u0451\u0442 \u043f\u043e \u0441\u0435\u0442\u0430\u043c: {result["predicted_sets"]}
+\u26a0\ufe0f \u0420\u0438\u0441\u043a: {risk_ru[result["risk"]]}
+\U0001f9ea \u041a\u0430\u0447\u0435\u0441\u0442\u0432\u043e \u0434\u0430\u043d\u043d\u044b\u0445: {result["data_quality"]}%
+\U0001f4e1 \u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a: {result["source"]}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-\u26a0\ufe0f Tennis AI \u0441\u0435\u0439\u0447\u0430\u0441 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0432 Beta-\u0440\u0435\u0436\u0438\u043c\u0435.
-\u0424\u043e\u0440\u043c\u0430, H2H, \u043f\u043e\u0434\u0430\u0447\u0430, \u043f\u0440\u0438\u0451\u043c \u0438 \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0435 \u043f\u043e\u043a\u0430 \u044f\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u044b\u043c\u0438 \u043e\u0446\u0435\u043d\u043a\u0430\u043c\u0438.
+\u26a0\ufe0f {note}
 
 \u041f\u0440\u043e\u0433\u043d\u043e\u0437 \u043d\u043e\u0441\u0438\u0442 \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u043e\u043d\u043d\u044b\u0439 \u0445\u0430\u0440\u0430\u043a\u0442\u0435\u0440 \u0438 \u043d\u0435 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0440\u0443\u0435\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.
 """
