@@ -1,4 +1,4 @@
--*- coding: ascii -*-
+# -*- coding: ascii -*-
 import os
 from datetime import datetime
 from threading import Thread
