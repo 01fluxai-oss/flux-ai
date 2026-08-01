@@ -1,6 +1,8 @@
-# -*- coding: ascii -*-
+-*- coding: ascii -*-
 import os
+from datetime import datetime
 from threading import Thread
+from zoneinfo import ZoneInfo
 
 import requests
 from flask import Flask, request
@@ -814,6 +816,97 @@ def process_callback_query(callback_query):
     answer_callback_query(callback_id)
 
 
+
+def send_tennis_today(chat_id, language="ru"):
+    try:
+        from providers.tennis_provider import get_today_singles_matches
+
+        yerevan_now = datetime.now(ZoneInfo("Asia/Yerevan"))
+        date_text = yerevan_now.strftime("%Y-%m-%d")
+
+        matches = get_today_singles_matches(
+            date_text=date_text,
+            timezone_name="Asia/Yerevan",
+            max_matches=10,
+        )
+
+        if not matches:
+            message_text = (
+                "\U0001f4c5 No upcoming tennis matches were found today."
+                if language == "en"
+                else "\U0001f4c5 \u041d\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0431\u043b\u0438\u0436\u0430\u0439\u0448\u0438\u0435 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0435 \u043c\u0430\u0442\u0447\u0438 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b."
+            )
+            send_message(
+                chat_id,
+                message_text,
+                reply_markup=main_menu(language),
+            )
+            return
+
+        lines = [
+            "\U0001f4c5 TENNIS TODAY"
+            if language == "en"
+            else "\U0001f4c5 \u0422\u0415\u041d\u041d\u0418\u0421 \u0421\u0415\u0413\u041e\u0414\u041d\u042f"
+        ]
+
+        for index, match in enumerate(matches, start=1):
+            time_text = match.get("time") or "\u2014"
+            player1 = match.get("player1") or "\u2014"
+            player2 = match.get("player2") or "\u2014"
+            surface = match.get("surface") or "hard"
+            tournament = match.get("tournament") or ""
+            live = match.get("live", False)
+
+            status_text = " \U0001f534 LIVE" if live else ""
+            tournament_line = (
+                f"\n\U0001f3df {tournament[:70]}"
+                if tournament
+                else ""
+            )
+
+            lines.append(
+                f"{index}. {time_text}{status_text} | "
+                f"{player1} \u2014 {player2}"
+                f"{tournament_line}\n"
+                f"\U0001f3be {surface.title()}"
+            )
+
+        instruction = (
+            "\n\nTo analyze a match, send:\n"
+            "Player 1 - Player 2 | surface"
+            if language == "en"
+            else
+            "\n\n\u0414\u043b\u044f \u0430\u043d\u0430\u043b\u0438\u0437\u0430 \u043e\u0442\u043f\u0440\u0430\u0432\u044c:\n"
+            "\u0418\u0433\u0440\u043e\u043a 1 - \u0418\u0433\u0440\u043e\u043a 2 | \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0435"
+        )
+
+        message_text = "\n\n".join(lines) + instruction
+
+        if len(message_text) > 4000:
+            message_text = message_text[:3950] + "\n\n..."
+
+        send_message(
+            chat_id,
+            message_text,
+            reply_markup=main_menu(language),
+        )
+
+    except Exception as error:
+        print("TENNIS_TODAY_ERROR:", repr(error), flush=True)
+
+        message_text = (
+            "\u26a0\ufe0f Could not load today's tennis matches."
+            if language == "en"
+            else "\u26a0\ufe0f \u041d\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0441\u0435\u0433\u043e\u0434\u043d\u044f\u0448\u043d\u0438\u0435 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0435 \u043c\u0430\u0442\u0447\u0438."
+        )
+
+        send_message(
+            chat_id,
+            message_text,
+            reply_markup=main_menu(language),
+        )
+
+
 @app.route("/")
 def home():
     return "FLUX AI Sports PRO v5.0 is running!"
@@ -937,6 +1030,8 @@ def telegram_webhook():
             return "OK", 200
 
         button_commands = {
+            "\U0001f4c5 \u0422\u0435\u043d\u043d\u0438\u0441 \u0441\u0435\u0433\u043e\u0434\u043d\u044f": "/tennis_today",
+            "\U0001f4c5 Tennis Today": "/tennis_today",
             "\U0001f3c6 \u0422\u041e\u041f-3 \u0434\u043d\u044f": "/today",
             "\U0001f3c6 Top 3 Today": "/today",
             "\U0001f30d \u0427\u041c-2026": "/worldcup",
@@ -961,6 +1056,11 @@ def telegram_webhook():
                 help_message(language),
                 reply_markup=main_menu(language),
             )
+            return "OK", 200
+
+        if text == "/tennis_today":
+            set_user_sport(user_id, "tennis")
+            send_tennis_today(chat_id, language)
             return "OK", 200
 
         if text == "/about":
