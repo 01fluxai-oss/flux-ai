@@ -7,6 +7,9 @@ from psycopg.rows import dict_row
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
+VALID_LANGUAGES = {"ru", "en"}
+VALID_SPORTS = {"football", "nba", "tennis"}
+
 
 def get_connection():
     return psycopg.connect(
@@ -85,6 +88,24 @@ def init_db():
                     TEXT DEFAULT 'football'
                 """)
 
+                cursor.execute("""
+                    UPDATE users
+                    SET language = 'ru'
+                    WHERE language IS NULL
+                    OR language NOT IN ('ru', 'en')
+                """)
+
+                cursor.execute("""
+                    UPDATE users
+                    SET sport = 'football'
+                    WHERE sport IS NULL
+                    OR sport NOT IN (
+                        'football',
+                        'nba',
+                        'tennis'
+                    )
+                """)
+
     finally:
         connection.close()
 
@@ -135,14 +156,11 @@ def add_user(user):
         connection.close()
 
 
-def set_user_language(
-    user_id,
-    language,
-):
-    if language not in {
-        "ru",
-        "en",
-    }:
+def set_user_language(user_id, language):
+    if not user_id:
+        return
+
+    if language not in VALID_LANGUAGES:
         language = "ru"
 
     connection = get_connection()
@@ -189,26 +207,19 @@ def get_user_language(user_id):
 
     language = row.get("language")
 
-    if language not in {
-        "ru",
-        "en",
-    }:
+    if language not in VALID_LANGUAGES:
         return "ru"
 
     return language
 
 
-def set_user_sport(
-    user_id,
-    sport,
-):
+def set_user_sport(user_id, sport):
     if not user_id:
         return
 
-    if sport not in {
-        "football",
-        "nba",
-    }:
+    sport = str(sport or "").strip().lower()
+
+    if sport not in VALID_SPORTS:
         sport = "football"
 
     connection = get_connection()
@@ -253,26 +264,16 @@ def get_user_sport(user_id):
     if not row:
         return "football"
 
-    sport = row.get("sport")
+    sport = str(row.get("sport") or "").strip().lower()
 
-    if sport not in {
-        "football",
-        "nba",
-    }:
+    if sport not in VALID_SPORTS:
         return "football"
 
     return sport
 
 
-def activate_pro(
-    user_id,
-    days=30,
-):
-    pro_until = (
-        utc_now()
-        + timedelta(days=days)
-    )
-
+def activate_pro(user_id, days=30):
+    pro_until = utc_now() + timedelta(days=days)
     connection = get_connection()
 
     try:
@@ -323,10 +324,7 @@ def is_pro(user_id):
                 ):
                     return False
 
-                active = (
-                    row["pro_until"]
-                    > utc_now()
-                )
+                active = row["pro_until"] > utc_now()
 
                 if not active:
                     cursor.execute("""
@@ -346,6 +344,9 @@ def is_pro(user_id):
 
 
 def get_user(user_id):
+    if not user_id:
+        return None
+
     connection = get_connection()
 
     try:
@@ -364,11 +365,7 @@ def get_user(user_id):
         connection.close()
 
 
-def save_prediction(
-    user_id,
-    match_name,
-    prediction,
-):
+def save_prediction(user_id, match_name, prediction):
     connection = get_connection()
 
     try:
@@ -398,10 +395,7 @@ def save_prediction(
         connection.close()
 
 
-def get_predictions(
-    user_id,
-    limit=20,
-):
+def get_predictions(user_id, limit=20):
     connection = get_connection()
 
     try:
@@ -466,9 +460,7 @@ def save_payment(
 
 
 def get_today_key():
-    return utc_now().strftime(
-        "%Y-%m-%d"
-    )
+    return utc_now().strftime("%Y-%m-%d")
 
 
 def get_today_usage(user_id):
@@ -495,9 +487,7 @@ def get_today_usage(user_id):
     if not row:
         return 0
 
-    return int(
-        row.get("analyses", 0)
-    )
+    return int(row.get("analyses", 0))
 
 
 def increase_today_usage(user_id):
@@ -533,32 +523,28 @@ def increase_today_usage(user_id):
         connection.close()
 
 
-def free_limit_message(
-    language="ru",
-):
+def free_limit_message(language="ru"):
     if language == "en":
         return (
-            "🔒 You have used all "
-            "2 free analyses for today.\n\n"
+            "ð You have reached today's free analysis limit.\n\n"
             "Activate FLUX AI PRO and get:\n"
-            "✅ Unlimited sports analysis\n"
-            "✅ Football and NBA analysis\n"
-            "✅ Extended statistics\n"
-            "✅ Daily Top 3 predictions\n"
-            "✅ New PRO features\n\n"
-            "Press 💎 FLUX PRO in the menu."
+            "â Unlimited sports analysis\n"
+            "â Football, NBA and Tennis analysis\n"
+            "â Extended statistics\n"
+            "â Daily Top 3 predictions\n"
+            "â New PRO features\n\n"
+            "Press ð FLUX PRO in the menu."
         )
 
     return (
-        "🔒 Вы использовали все "
-        "2 бесплатных анализа на сегодня.\n\n"
-        "Оформите FLUX AI PRO и получите:\n"
-        "✅ Безлимитный анализ спорта\n"
-        "✅ Анализ футбола и NBA\n"
-        "✅ Расширенную статистику\n"
-        "✅ ТОП-3 прогнозов дня\n"
-        "✅ Новые PRO-функции\n\n"
-        "Нажмите кнопку 💎 FLUX PRO в меню."
+        "ð ÐÑ Ð´Ð¾ÑÑÐ¸Ð³Ð»Ð¸ Ð´Ð½ÐµÐ²Ð½Ð¾Ð³Ð¾ Ð»Ð¸Ð¼Ð¸ÑÐ° Ð±ÐµÑÐ¿Ð»Ð°ÑÐ½ÑÑ Ð°Ð½Ð°Ð»Ð¸Ð·Ð¾Ð².\n\n"
+        "ÐÑÐ¾ÑÐ¼Ð¸ÑÐµ FLUX AI PRO Ð¸ Ð¿Ð¾Ð»ÑÑÐ¸ÑÐµ:\n"
+        "â ÐÐµÐ·Ð»Ð¸Ð¼Ð¸ÑÐ½ÑÐ¹ Ð°Ð½Ð°Ð»Ð¸Ð· ÑÐ¿Ð¾ÑÑÐ°\n"
+        "â ÐÐ½Ð°Ð»Ð¸Ð· ÑÑÑÐ±Ð¾Ð»Ð°, NBA Ð¸ ÑÐµÐ½Ð½Ð¸ÑÐ°\n"
+        "â Ð Ð°ÑÑÐ¸ÑÐµÐ½Ð½ÑÑ ÑÑÐ°ÑÐ¸ÑÑÐ¸ÐºÑ\n"
+        "â Ð¢ÐÐ-3 Ð¿ÑÐ¾Ð³Ð½Ð¾Ð·Ð¾Ð² Ð´Ð½Ñ\n"
+        "â ÐÐ¾Ð²ÑÐµ PRO-ÑÑÐ½ÐºÑÐ¸Ð¸\n\n"
+        "ÐÐ°Ð¶Ð¼Ð¸ÑÐµ ÐºÐ½Ð¾Ð¿ÐºÑ ð FLUX PRO Ð² Ð¼ÐµÐ½Ñ."
     )
 
 
@@ -571,10 +557,7 @@ def get_admin_stats():
                 SELECT COUNT(*) AS count
                 FROM users
             """)
-
-            total_users = cursor.fetchone()[
-                "count"
-            ]
+            total_users = cursor.fetchone()["count"]
 
             cursor.execute("""
                 SELECT COUNT(*) AS count
@@ -585,20 +568,14 @@ def get_admin_stats():
             """, (
                 utc_now(),
             ))
-
-            active_pro = cursor.fetchone()[
-                "count"
-            ]
+            active_pro = cursor.fetchone()["count"]
 
             cursor.execute("""
                 SELECT COUNT(*) AS count
                 FROM payments
                 WHERE status = 'paid'
             """)
-
-            total_payments = cursor.fetchone()[
-                "count"
-            ]
+            total_payments = cursor.fetchone()["count"]
 
     finally:
         connection.close()
