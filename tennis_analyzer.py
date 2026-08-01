@@ -1,10 +1,34 @@
 # -*- coding: ascii -*-
+# -*- coding: ascii -*-
 import hashlib
 
 from providers.tennis_provider import TennisAPIError, get_real_tennis_data
 
 
 FALLBACK_DATA_QUALITY = 25
+
+
+VALID_SURFACES = {"hard", "clay", "grass"}
+
+
+def parse_surface(player2_text):
+    text = str(player2_text or "").strip()
+    surface = "hard"
+
+    if "|" in text:
+        name_part, surface_part = text.rsplit("|", 1)
+        candidate = surface_part.strip().lower()
+
+        aliases = {
+            "hard": "hard",
+            "clay": "clay",
+            "grass": "grass",
+        }
+
+        surface = aliases.get(candidate, "hard")
+        text = name_part.strip()
+
+    return text, surface
 
 
 def clamp(value, minimum=1, maximum=99):
@@ -87,15 +111,17 @@ def verdict_key(probability):
 
 
 def analyze_tennis_match(player1, player2, language="ru"):
+    player2, surface = parse_surface(player2)
+
     try:
         real_data = get_real_tennis_data(player1, player2)
-        return analyze_with_real_data(real_data, language)
+        return analyze_with_real_data(real_data, language, surface)
     except Exception as error:
         print("TENNIS_API_FALLBACK:", repr(error), flush=True)
-        return analyze_with_fallback(player1, player2, language)
+        return analyze_with_fallback(player1, player2, language, surface)
 
 
-def analyze_with_real_data(real_data, language="ru"):
+def analyze_with_real_data(real_data, language="ru", surface="hard"):
     player1 = real_data["player1"]
     player2 = real_data["player2"]
 
@@ -108,12 +134,12 @@ def analyze_with_real_data(real_data, language="ru"):
     power1 = round(
         rank_score(player1.get("rank")) * 0.45
         + recent_score(recent1) * 0.35
-        + surface_score(stats1, "hard") * 0.20
+        + surface_score(stats1, surface) * 0.20
     )
     power2 = round(
         rank_score(player2.get("rank")) * 0.45
         + recent_score(recent2) * 0.35
-        + surface_score(stats2, "hard") * 0.20
+        + surface_score(stats2, surface) * 0.20
     )
 
     total_power = max(power1 + power2, 1)
@@ -171,19 +197,20 @@ def analyze_with_real_data(real_data, language="ru"):
         "rank2": player2.get("rank"),
         "recent_win_rate1": recent1.get("win_rate"),
         "recent_win_rate2": recent2.get("win_rate"),
-        "hard_rate1": surface_score(stats1, "hard"),
-        "hard_rate2": surface_score(stats2, "hard"),
+        "hard_rate1": surface_score(stats1, surface),
+        "hard_rate2": surface_score(stats2, surface),
         "h2h_first": h2h_first,
         "h2h_second": h2h_second,
         "verdict": verdict_key(favorite_probability),
         "source": "API-Tennis",
+        "surface": surface,
         "is_fallback": False,
     }
 
     return format_tennis_analysis(result, language)
 
 
-def analyze_with_fallback(player1, player2, language="ru"):
+def analyze_with_fallback(player1, player2, language="ru", surface="hard"):
     power1 = stable_number(player1, 58, 88, "power")
     power2 = stable_number(player2, 58, 88, "power")
 
@@ -226,6 +253,7 @@ def analyze_with_fallback(player1, player2, language="ru"):
         "h2h_second": 0,
         "verdict": verdict_key(favorite_probability),
         "source": "FLUX fallback",
+        "surface": surface,
         "is_fallback": True,
     }
 
@@ -303,8 +331,8 @@ def format_tennis_analysis(result, language="ru"):
 {result["player2"]}: {form2}
 
 \U0001f3c5 Ranking
-{result["player1"]}: {format_value(result["rank1"], "#")}
-{result["player2"]}: {format_value(result["rank2"], "#")}
+{result["player1"]}: #{format_value(result["rank1"])}
+{result["player2"]}: #{format_value(result["rank2"])}
 
 \U0001f4ca Recent Win Rate
 {result["player1"]}: {format_value(result["recent_win_rate1"], "%")}
@@ -335,7 +363,7 @@ Predictions are informational and do not guarantee results.
     note = (
         "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c live-\u0434\u0430\u043d\u043d\u044b, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d FLUX fallback."
         if result["is_fallback"]
-        else "\u041c\u043e\u0434\u0435\u043b\u044c \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b API-Tennis."
+        else "\u041c\u043e\u0434\u0435\u043b\u044c \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 API-Tennis."
     )
 
     return f"""\U0001f3be FLUX AI TENNIS PRO
@@ -369,14 +397,14 @@ Predictions are informational and do not guarantee results.
 {result["player2"]}: {form2}
 
 \U0001f3c5 \u0420\u0435\u0439\u0442\u0438\u043d\u0433
-{result["player1"]}: {format_value(result["rank1"], "#")}
-{result["player2"]}: {format_value(result["rank2"], "#")}
+{result["player1"]}: #{format_value(result["rank1"])}
+{result["player2"]}: #{format_value(result["rank2"])}
 
 \U0001f4ca \u041f\u0440\u043e\u0446\u0435\u043d\u0442 \u043f\u043e\u0431\u0435\u0434 \u0432 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0445 \u043c\u0430\u0442\u0447\u0430\u0445
 {result["player1"]}: {format_value(result["recent_win_rate1"], "%")}
 {result["player2"]}: {format_value(result["recent_win_rate2"], "%")}
 
-\U0001f3df \u041f\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u044c \u043d\u0430 hard
+\U0001f3df \u041f\u043e\u043a\u0440\u044b\u0442\u0438\u0435: {result["surface"].title()}\n\u041f\u0440\u043e\u0446\u0435\u043d\u0442 \u043f\u043e\u0431\u0435\u0434 \u043d\u0430 \u044d\u0442\u043e\u043c \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0438
 {result["player1"]}: {format_value(result["hard_rate1"], "%")}
 {result["player2"]}: {format_value(result["hard_rate2"], "%")}
 
