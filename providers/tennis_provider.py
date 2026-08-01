@@ -384,3 +384,137 @@ def get_real_tennis_data(player1_name, player2_name):
         "h2h": h2h,
         "data_quality": data_quality,
     }
+
+def get_fixtures(date_start, date_stop=None, timezone_name="Asia/Yerevan"):
+    if date_stop is None:
+        date_stop = date_start
+
+    result = _request(
+        "get_fixtures",
+        date_start=date_start,
+        date_stop=date_stop,
+        timezone=timezone_name,
+    )
+
+    return result if isinstance(result, list) else []
+
+
+def _is_singles_match(match):
+    event_type = str(match.get("event_type_type") or "").lower()
+
+    if "doubles" in event_type:
+        return False
+
+    return "singles" in event_type
+
+
+def _is_future_or_live_match(match):
+    status = str(match.get("event_status") or "").strip().lower()
+    winner = str(match.get("event_winner") or "").strip()
+
+    if winner:
+        return False
+
+    finished_statuses = {
+        "finished",
+        "retired",
+        "walkover",
+        "cancelled",
+        "canceled",
+        "abandoned",
+    }
+
+    return status not in finished_statuses
+
+
+def _infer_surface(match):
+    text = " ".join([
+        str(match.get("tournament_name") or ""),
+        str(match.get("event_type_type") or ""),
+    ]).lower()
+
+    clay_words = {
+        "clay",
+        "roland garros",
+        "rome",
+        "madrid",
+        "monte carlo",
+        "barcelona",
+        "hamburg",
+        "bastad",
+        "gstaad",
+        "kitzbuhel",
+        "umbria",
+    }
+    grass_words = {
+        "grass",
+        "wimbledon",
+        "halle",
+        "queen",
+        "eastbourne",
+        "nottingham",
+        "s-hertogenbosch",
+        "newport",
+    }
+
+    if any(word in text for word in clay_words):
+        return "clay"
+
+    if any(word in text for word in grass_words):
+        return "grass"
+
+    return "hard"
+
+
+def get_today_singles_matches(
+    date_text,
+    timezone_name="Asia/Yerevan",
+    max_matches=12,
+):
+    fixtures = get_fixtures(
+        date_start=date_text,
+        date_stop=date_text,
+        timezone_name=timezone_name,
+    )
+
+    matches = []
+
+    for item in fixtures:
+        if not _is_singles_match(item):
+            continue
+
+        if not _is_future_or_live_match(item):
+            continue
+
+        player1 = str(
+            item.get("event_first_player") or ""
+        ).strip()
+        player2 = str(
+            item.get("event_second_player") or ""
+        ).strip()
+
+        if not player1 or not player2:
+            continue
+
+        matches.append({
+            "match_key": str(item.get("event_key") or ""),
+            "date": item.get("event_date"),
+            "time": item.get("event_time") or "",
+            "player1": player1,
+            "player2": player2,
+            "tournament": item.get("tournament_name") or "",
+            "round": item.get("tournament_round") or "",
+            "event_type": item.get("event_type_type") or "",
+            "surface": _infer_surface(item),
+            "live": str(item.get("event_live") or "0") == "1",
+            "status": item.get("event_status") or "",
+        })
+
+    matches.sort(
+        key=lambda match: (
+            match.get("date") or "",
+            match.get("time") or "99:99",
+        )
+    )
+
+    return matches[:max_matches]
