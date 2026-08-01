@@ -1,5 +1,6 @@
 # -*- coding: ascii -*-
 # -*- coding: ascii -*-
+# -*- coding: ascii -*-
 import hashlib
 
 from providers.tennis_provider import TennisAPIError, get_real_tennis_data
@@ -260,6 +261,165 @@ def analyze_with_fallback(player1, player2, language="ru", surface="hard"):
     return format_tennis_analysis(result, language)
 
 
+
+def build_ai_verdict(result, language="ru"):
+    p1 = result["player1"]
+    p2 = result["player2"]
+
+    factors1 = 0
+    factors2 = 0
+
+    if result["rank1"] and result["rank2"]:
+        if result["rank1"] < result["rank2"]:
+            factors1 += 1
+        elif result["rank2"] < result["rank1"]:
+            factors2 += 1
+
+    if result["recent_win_rate1"] is not None and result["recent_win_rate2"] is not None:
+        if result["recent_win_rate1"] > result["recent_win_rate2"]:
+            factors1 += 1
+        elif result["recent_win_rate2"] > result["recent_win_rate1"]:
+            factors2 += 1
+
+    if result["hard_rate1"] is not None and result["hard_rate2"] is not None:
+        if result["hard_rate1"] > result["hard_rate2"]:
+            factors1 += 1
+        elif result["hard_rate2"] > result["hard_rate1"]:
+            factors2 += 1
+
+    if result["h2h_first"] > result["h2h_second"]:
+        factors1 += 1
+    elif result["h2h_second"] > result["h2h_first"]:
+        factors2 += 1
+
+    if factors1 > factors2:
+        coach_favorite = p1
+    elif factors2 > factors1:
+        coach_favorite = p2
+    else:
+        coach_favorite = result["favorite"]
+
+    if language == "en":
+        lines = []
+
+        if result["rank1"] and result["rank2"]:
+            better_rank = p1 if result["rank1"] < result["rank2"] else p2
+            lines.append(f"Ranking edge: {better_rank}.")
+
+        if result["recent_win_rate1"] is not None and result["recent_win_rate2"] is not None:
+            if result["recent_win_rate1"] == result["recent_win_rate2"]:
+                lines.append("Recent form is evenly matched.")
+            else:
+                better_form = (
+                    p1
+                    if result["recent_win_rate1"] > result["recent_win_rate2"]
+                    else p2
+                )
+                lines.append(f"Recent-form edge: {better_form}.")
+
+        if result["hard_rate1"] is not None and result["hard_rate2"] is not None:
+            if result["hard_rate1"] == result["hard_rate2"]:
+                lines.append(
+                    f"Surface performance is level on {result['surface'].title()}."
+                )
+            else:
+                better_surface = (
+                    p1
+                    if result["hard_rate1"] > result["hard_rate2"]
+                    else p2
+                )
+                lines.append(
+                    f"Surface edge on {result['surface'].title()}: {better_surface}."
+                )
+
+        if result["h2h_first"] == result["h2h_second"]:
+            lines.append("The H2H record is tied.")
+        else:
+            h2h_edge = (
+                p1
+                if result["h2h_first"] > result["h2h_second"]
+                else p2
+            )
+            lines.append(f"H2H edge: {h2h_edge}.")
+
+        if result["favorite_probability"] <= 54:
+            conclusion = (
+                f"The matchup is very close. FLUX gives a slight edge to "
+                f"{coach_favorite}, but the risk remains meaningful."
+            )
+        elif result["favorite_probability"] <= 64:
+            conclusion = (
+                f"FLUX gives {coach_favorite} a moderate edge based on the "
+                "combined ranking, form, surface and H2H signals."
+            )
+        else:
+            conclusion = (
+                f"FLUX sees the clearest overall advantage for {coach_favorite}."
+            )
+
+        return "\n".join(lines), conclusion
+
+    lines = []
+
+    if result["rank1"] and result["rank2"]:
+        better_rank = p1 if result["rank1"] < result["rank2"] else p2
+        lines.append(f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u0432 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\u0435 \u0443 {better_rank}.")
+
+    if result["recent_win_rate1"] is not None and result["recent_win_rate2"] is not None:
+        if result["recent_win_rate1"] == result["recent_win_rate2"]:
+            lines.append("\u041f\u043e \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u0444\u043e\u0440\u043c\u0435 \u0438\u0433\u0440\u043e\u043a\u0438 \u0440\u0430\u0432\u043d\u044b.")
+        else:
+            better_form = (
+                p1
+                if result["recent_win_rate1"] > result["recent_win_rate2"]
+                else p2
+            )
+            lines.append(f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u043f\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0444\u043e\u0440\u043c\u0435 \u0443 {better_form}.")
+
+    if result["hard_rate1"] is not None and result["hard_rate2"] is not None:
+        if result["hard_rate1"] == result["hard_rate2"]:
+            lines.append(
+                f"\u041d\u0430 \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0438 {result['surface'].title()} \u043f\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u0438 \u0440\u0430\u0432\u043d\u044b."
+            )
+        else:
+            better_surface = (
+                p1
+                if result["hard_rate1"] > result["hard_rate2"]
+                else p2
+            )
+            lines.append(
+                f"\u041d\u0430 \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0438 {result['surface'].title()} \u0441\u0438\u043b\u044c\u043d\u0435\u0435 \u0432\u044b\u0433\u043b\u044f\u0434\u0438\u0442 "
+                f"{better_surface}."
+            )
+
+    if result["h2h_first"] == result["h2h_second"]:
+        lines.append("\u041b\u0438\u0447\u043d\u044b\u0435 \u0432\u0441\u0442\u0440\u0435\u0447\u0438 \u0438\u0434\u0443\u0442 \u0432\u0440\u043e\u0432\u0435\u043d\u044c.")
+    else:
+        h2h_edge = (
+            p1
+            if result["h2h_first"] > result["h2h_second"]
+            else p2
+        )
+        lines.append(f"\u041f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u0432 \u043b\u0438\u0447\u043d\u044b\u0445 \u0432\u0441\u0442\u0440\u0435\u0447\u0430\u0445 \u0443 {h2h_edge}.")
+
+    if result["favorite_probability"] <= 54:
+        conclusion = (
+            f"\u041c\u0430\u0442\u0447 \u043e\u0447\u0435\u043d\u044c \u0431\u043b\u0438\u0437\u043a\u0438\u0439. FLUX \u0434\u0430\u0451\u0442 \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e "
+            f"{coach_favorite}, \u043d\u043e \u0440\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u0437\u0430\u043c\u0435\u0442\u043d\u044b\u043c."
+        )
+    elif result["favorite_probability"] <= 64:
+        conclusion = (
+            f"FLUX \u043e\u0442\u0434\u0430\u0451\u0442 \u0443\u043c\u0435\u0440\u0435\u043d\u043d\u043e\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e {coach_favorite} "
+            "\u043f\u043e \u0441\u043e\u0432\u043e\u043a\u0443\u043f\u043d\u043e\u0441\u0442\u0438 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\u0430, \u0444\u043e\u0440\u043c\u044b, \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u044f \u0438 H2H."
+        )
+    else:
+        conclusion = (
+            f"\u041d\u0430\u0438\u0431\u043e\u043b\u0435\u0435 \u0432\u044b\u0440\u0430\u0436\u0435\u043d\u043d\u043e\u0435 \u043e\u0431\u0449\u0435\u0435 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u043e \u0443 {coach_favorite}."
+        )
+
+    return "\n".join(lines), conclusion
+
+
 def format_value(value, suffix=""):
     if value is None:
         return "\u2014"
@@ -292,6 +452,7 @@ def format_tennis_analysis(result, language="ru"):
 
     form1 = format_form(result["form1"])
     form2 = format_form(result["form2"])
+    verdict_details, verdict_conclusion = build_ai_verdict(result, language)
 
     if language == "en":
         note = (
@@ -345,6 +506,15 @@ def format_tennis_analysis(result, language="ru"):
 \U0001f91d H2H
 {result["player1"]}: {result["h2h_first"]}
 {result["player2"]}: {result["h2h_second"]}
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\U0001f9e0 FLUX AI Tennis Coach
+
+{verdict_details}
+
+\u2696\ufe0f FLUX Verdict
+{verdict_conclusion}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -411,6 +581,15 @@ Predictions are informational and do not guarantee results.
 \U0001f91d H2H
 {result["player1"]}: {result["h2h_first"]}
 {result["player2"]}: {result["h2h_second"]}
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\U0001f9e0 FLUX AI Tennis Coach
+
+{verdict_details}
+
+\u2696\ufe0f \u0412\u0435\u0440\u0434\u0438\u043a\u0442 FLUX
+{verdict_conclusion}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
