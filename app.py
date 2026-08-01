@@ -1,5 +1,4 @@
 import os
-import secrets
 from threading import Thread
 
 import requests
@@ -34,11 +33,6 @@ CHANNEL_USERNAME = "@FluxAIDaily"
 FREE_DAILY_LIMIT = 10
 PRO_PRICE_STARS = 500
 PRO_DAYS = 30
-
-MAX_SCHEDULE_GAMES = 10
-SCHEDULE_SEARCH_DAYS = 14
-SCHEDULE_CACHE = {}
-MAX_CACHE_ITEMS = 500
 
 app = Flask(__name__)
 init_db()
@@ -98,8 +92,6 @@ def main_menu(language="ru"):
     if language == "en":
         keyboard = [
             ["⚽ Football", "🏀 NBA"],
-            ["🎾 Tennis"],
-            ["📅 Today’s Games"],
             ["⚽ Analyze Match"],
             ["🏆 Top 3 Today", "🌍 World Cup 2026"],
             ["📈 Results"],
@@ -111,8 +103,6 @@ def main_menu(language="ru"):
     else:
         keyboard = [
             ["⚽ Футбол", "🏀 NBA"],
-            ["🎾 Теннис"],
-            ["📅 Матчи сегодня"],
             ["⚽ Анализ матча"],
             ["🏆 ТОП-3 дня", "🌍 ЧМ-2026"],
             ["📈 Результаты"],
@@ -380,38 +370,12 @@ def handle_analysis(chat_id, user_id, text, language="ru"):
     send_message(chat_id, analyzing_text, reply_markup=main_menu(language))
 
     try:
-    if sport_mode == "nba":
-        answer = analyze_nba_text(text, language)
-        sport_prefix = "NBA"
-
-    elif sport_mode == "tennis":
-        separators = [" — ", " - ", " vs ", " v "]
-
-        player1 = None
-        player2 = None
-
-        for separator in separators:
-            if separator in text:
-                parts = text.split(separator, 1)
-
-                if len(parts) == 2:
-                    player1 = parts[0].strip()
-                    player2 = parts[1].strip()
-                    break
-
-        if not player1 or not player2:
-            raise ValueError("Invalid tennis match format")
-
-        answer = analyze_tennis_match(
-            player1,
-            player2,
-            language,
-        )
-        sport_prefix = "TENNIS"
-
-    else:
-        answer = analyze_match_text(text, language)
-        sport_prefix = "FOOTBALL"
+        if sport_mode == "nba":
+            answer = analyze_nba_text(text, language)
+            sport_prefix = "NBA"
+        else:
+            answer = analyze_match_text(text, language)
+            sport_prefix = "FOOTBALL"
 
         send_message(chat_id, answer, reply_markup=main_menu(language))
 
@@ -426,147 +390,6 @@ def handle_analysis(chat_id, user_id, text, language="ru"):
             error_text = "⚠️ Could not complete the NBA analysis.\n\nCheck the format:\nLakers - Celtics" if language == "en" else "⚠️ Не получилось сделать анализ NBA.\n\nПроверь формат:\nLakers - Celtics"
         else:
             error_text = "⚠️ Could not complete the football analysis.\n\nCheck the format:\nReal Madrid - Barcelona" if language == "en" else "⚠️ Не получилось сделать футбольный анализ.\n\nПроверь формат:\nReal Madrid - Barcelona"
-        send_message(chat_id, error_text, reply_markup=main_menu(language))
-
-
-def clear_old_schedule_cache():
-    while len(SCHEDULE_CACHE) > MAX_CACHE_ITEMS:
-        oldest_key = next(iter(SCHEDULE_CACHE))
-        SCHEDULE_CACHE.pop(oldest_key, None)
-
-
-def cache_schedule_game(user_id, sport, team1, team2):
-    token = secrets.token_urlsafe(6)
-    SCHEDULE_CACHE[token] = {
-        "user_id": user_id,
-        "sport": sport,
-        "team1": team1,
-        "team2": team2,
-    }
-    clear_old_schedule_cache()
-    return token
-
-
-def build_schedule_keyboard(user_id, sport, games, language):
-    rows = []
-
-    for game in games[:MAX_SCHEDULE_GAMES]:
-        if sport == "nba":
-            team1 = game.get("home_team", "")
-            team2 = game.get("visitor_team", "")
-            time_text = game.get("status") or ""
-        else:
-            team1 = game.get("home_team", "")
-            team2 = game.get("away_team", "")
-            time_text = game.get("time") or ""
-
-        if not team1 or not team2:
-            continue
-
-        token = cache_schedule_game(user_id, sport, team1, team2)
-        button_text = f"{team1} — {team2}"
-
-        if time_text:
-            button_text = f"{time_text} | {button_text}"
-
-        if len(button_text) > 60:
-            button_text = button_text[:57] + "..."
-
-        rows.append([{
-            "text": button_text,
-            "callback_data": f"game_{token}",
-        }])
-
-    back_text = "↩️ Main menu" if language == "en" else "↩️ Главное меню"
-    rows.append([{
-        "text": back_text,
-        "callback_data": "schedule_back",
-    }])
-
-    return {"inline_keyboard": rows}
-
-
-def schedule_header(sport, schedule, language):
-    date_text = schedule.get("date") or "—"
-    is_today = schedule.get("is_today", False)
-
-    if sport == "nba":
-        sport_title = "NBA"
-    else:
-        sport_title = "Football" if language == "en" else "Футбол"
-
-    if language == "en":
-        day_text = "Today" if is_today else "Nearest game day"
-        return (
-            f"📅 {sport_title} | {day_text}\n\n"
-            f"Date: {date_text}\n"
-            "Tap a game to start the analysis."
-        )
-
-    day_text = "Сегодня" if is_today else "Ближайший игровой день"
-    return (
-        f"📅 {sport_title} | {day_text}\n\n"
-        f"Дата: {date_text}\n"
-        "Нажми на матч, чтобы запустить анализ."
-    )
-
-
-def send_today_games(chat_id, user_id, language):
-    sport = get_user_sport(user_id)
-
-    try:
-        if sport == "nba":
-            from providers.nba_provider import get_upcoming_nba_games
-
-            schedule = get_upcoming_nba_games(
-                search_days=SCHEDULE_SEARCH_DAYS,
-                max_games=MAX_SCHEDULE_GAMES,
-            )
-        else:
-            from providers.thesportsdb import get_upcoming_football_games
-
-            schedule = get_upcoming_football_games(
-                search_days=SCHEDULE_SEARCH_DAYS,
-                max_games=MAX_SCHEDULE_GAMES,
-            )
-
-        games = schedule.get("games") or []
-
-        if not games:
-            if language == "en":
-                text = (
-                    "📅 No upcoming games were found in the next "
-                    f"{SCHEDULE_SEARCH_DAYS} days."
-                )
-            else:
-                text = (
-                    f"📅 В ближайшие {SCHEDULE_SEARCH_DAYS} дней "
-                    "матчи не найдены."
-                )
-
-            send_message(chat_id, text, reply_markup=main_menu(language))
-            return
-
-        keyboard = build_schedule_keyboard(
-            user_id,
-            sport,
-            games,
-            language,
-        )
-
-        send_message(
-            chat_id,
-            schedule_header(sport, schedule, language),
-            reply_markup=keyboard,
-        )
-
-    except Exception as error:
-        print("TODAY_GAMES_ERROR:", repr(error), flush=True)
-        error_text = (
-            "⚠️ Could not load the game schedule right now. Please try again later."
-            if language == "en"
-            else "⚠️ Сейчас не получилось загрузить расписание. Попробуй немного позже."
-        )
         send_message(chat_id, error_text, reply_markup=main_menu(language))
 
 
@@ -641,39 +464,6 @@ def process_callback_query(callback_query):
         answer_callback_query(callback_id, "Язык изменён на русский.")
         send_message(chat_id, start_message("ru"), reply_markup=main_menu("ru"))
         return
-
-    language = get_user_language(user_id)
-
-    if data == "schedule_back":
-        answer_callback_query(callback_id)
-        send_message(chat_id, start_message(language), reply_markup=main_menu(language))
-        return
-
-    if data.startswith("game_"):
-        token = data[len("game_"):]
-        game_data = SCHEDULE_CACHE.get(token)
-
-        if not game_data or game_data.get("user_id") != user_id:
-            message_text = (
-                "This game button has expired. Open Today’s Games again."
-                if language == "en"
-                else "Эта кнопка матча устарела. Открой «Матчи сегодня» ещё раз."
-            )
-            answer_callback_query(callback_id, message_text)
-            return
-
-        sport = game_data["sport"]
-        team1 = game_data["team1"]
-        team2 = game_data["team2"]
-
-        set_user_sport(user_id, sport)
-        answer_callback_query(
-            callback_id,
-            "Starting analysis..." if language == "en" else "Запускаю анализ...",
-        )
-        handle_analysis(chat_id, user_id, f"{team1} - {team2}", language)
-        return
-
     answer_callback_query(callback_id)
 
 
@@ -728,29 +518,6 @@ def telegram_webhook():
             send_message(chat_id, "Choose your language.\n\nВыберите язык.", reply_markup=language_keyboard())
             return "OK", 200
 
-        if text in ["🎾 Теннис", "🎾 Tennis"]:
-            set_user_sport(user_id, "tennis")
-
-            if language == "en":
-             message_text = (
-                 "🎾 Tennis mode selected.\n\n"
-                 "Send a match:\n"
-                 "Carlos Alcaraz - Jannik Sinner"
-             )
-        else:
-             message_text = (
-                 "🎾 Выбран режим тенниса.\n\n"
-                 "Отправь матч:\n"
-                 "Carlos Alcaraz - Jannik Sinner"
-             )
-
-        send_message(
-            chat_id,
-            message_text,
-            reply_markup=main_menu(language),
-        )
-        return "OK", 200
-
         if text in ["⚽ Футбол", "⚽ Football"]:
             set_user_sport(user_id, "football")
             message_text = "⚽ Football mode selected.\n\nSend a match:\nReal Madrid - Barcelona" if language == "en" else "⚽ Выбран режим футбола.\n\nНапиши матч:\nReal Madrid - Barcelona"
@@ -777,8 +544,6 @@ def telegram_webhook():
             return "OK", 200
 
         button_commands = {
-            "📅 Матчи сегодня": "/games", "📅 Today’s Games": "/games",
-            "📅 Today's Games": "/games",
             "🏆 ТОП-3 дня": "/today", "🏆 Top 3 Today": "/today",
             "🌍 ЧМ-2026": "/worldcup", "🌍 World Cup 2026": "/worldcup",
             "📈 Результаты": "/results", "📈 Results": "/results",
@@ -792,9 +557,6 @@ def telegram_webhook():
 
         if text in ["/help", "/analyze"]:
             send_message(chat_id, help_message(language), reply_markup=main_menu(language))
-            return "OK", 200
-        if text == "/games":
-            send_today_games(chat_id, user_id, language)
             return "OK", 200
         if text == "/about":
             send_message(chat_id, about_message(language), reply_markup=main_menu(language))
