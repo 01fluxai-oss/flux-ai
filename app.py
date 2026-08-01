@@ -702,17 +702,11 @@ def telegram_webhook():
             send_message(chat_id, "Choose your language.\n\nВыберите язык.", reply_markup=language_keyboard())
             return "OK", 200
 
-        if text in ["⚽ Футбол", "⚽ Football"]:
-            set_user_sport(user_id, "football")
-            message_text = "⚽ Football mode selected.\n\nSend a match:\nReal Madrid - Barcelona" if language == "en" else "⚽ Выбран режим футбола.\n\nНапиши матч:\nReal Madrid - Barcelona"
-            send_message(chat_id, message_text, reply_markup=main_menu(language))
-            return "OK", 200
-
         if text in ["🎾 Теннис", "🎾 Tennis"]:
-            set_user_sport(user_id, "tennis")
+           set_user_sport(user_id, "tennis")
 
         if language == "en":
-            message_text = (
+        message_text = (
             "🎾 Tennis mode selected.\n\n"
             "Send a match:\n"
             "Carlos Alcaraz - Jannik Sinner"
@@ -724,12 +718,18 @@ def telegram_webhook():
             "Carlos Alcaraz - Jannik Sinner"
         )
 
-    send_message(
+        send_message(
         chat_id,
         message_text,
         reply_markup=main_menu(language),
     )
     return "OK", 200
+
+        if text in ["⚽ Футбол", "⚽ Football"]:
+            set_user_sport(user_id, "football")
+            message_text = "⚽ Football mode selected.\n\nSend a match:\nReal Madrid - Barcelona" if language == "en" else "⚽ Выбран режим футбола.\n\nНапиши матч:\nReal Madrid - Barcelona"
+            send_message(chat_id, message_text, reply_markup=main_menu(language))
+            return "OK", 200
 
         if text == "🏀 NBA":
             set_user_sport(user_id, "nba")
