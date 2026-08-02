@@ -121,6 +121,91 @@ def api_get(
         ) from error
 
 
+
+def summarize_payload(value: Any, depth: int = 0) -> Any:
+    """
+    Build a compact, safe summary of a JSON response for Render logs.
+    The API key is never printed.
+    """
+    if depth >= 3:
+        if isinstance(value, dict):
+            return {"_type": "dict", "_keys": list(value.keys())[:20]}
+        if isinstance(value, list):
+            return {"_type": "list", "_length": len(value)}
+        return type(value).__name__
+
+    if isinstance(value, dict):
+        result = {}
+
+        for index, (key, item) in enumerate(value.items()):
+            if index >= 30:
+                result["_truncated"] = True
+                break
+
+            key_text = str(key)
+
+            if any(
+                secret_word in key_text.lower()
+                for secret_word in (
+                    "api_key",
+                    "apikey",
+                    "authorization",
+                    "token",
+                    "secret",
+                )
+            ):
+                result[key_text] = "[hidden]"
+                continue
+
+            result[key_text] = summarize_payload(
+                item,
+                depth + 1,
+            )
+
+        return result
+
+    if isinstance(value, list):
+        return {
+            "_type": "list",
+            "_length": len(value),
+            "_sample": [
+                summarize_payload(item, depth + 1)
+                for item in value[:3]
+            ],
+        }
+
+    if value is None:
+        return None
+
+    text = clean_text(value)
+
+    if len(text) > 120:
+        text = text[:117] + "..."
+
+    return text
+
+
+def log_payload(label: str, payload: Any) -> None:
+    try:
+        import json
+
+        summary = summarize_payload(payload)
+
+        print(
+            f"CITO_DEBUG_{label}: "
+            + json.dumps(
+                summary,
+                ensure_ascii=False,
+                sort_keys=True,
+            )[:12000],
+            flush=True,
+        )
+    except Exception as error:
+        print(
+            f"CITO_DEBUG_{label}_ERROR: {error!r}",
+            flush=True,
+        )
+
 def walk_dicts(value: Any) -> Iterable[Dict[str, Any]]:
     if isinstance(value, dict):
         yield value
@@ -476,6 +561,19 @@ def get_fighter_profile_by_slug(
     )
     fights_payload = api_get(
         f"/ufc/fighters/{encoded_slug}/fights"
+    )
+
+    log_payload(
+        f"PROFILE_{slug}",
+        profile_payload,
+    )
+    log_payload(
+        f"STATS_{slug}",
+        stats_payload,
+    )
+    log_payload(
+        f"FIGHTS_{slug}",
+        fights_payload,
     )
 
     name = clean_text(
