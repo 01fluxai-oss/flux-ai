@@ -1,47 +1,24 @@
 # -*- coding: utf-8 -*-
+import os
 import re
 import time
 from difflib import SequenceMatcher
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
+from urllib.parse import quote
 
 import requests
-from bs4 import BeautifulSoup
 
 
-BASE_URL = "https://ufcstats.com"
+BASE_URL = "https://api.citoapi.com/api/v1"
 REQUEST_TIMEOUT = 25
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-        "Version/17.0 Mobile/15E148 Safari/604.1"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;q=0.9,"
-        "image/avif,image/webp,*/*;q=0.8"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive",
-}
-
-# Verified direct UFCStats profile links.
-# These two entries also make the first production test independent
-# from the fighters-list search page.
-DIRECT_FIGHTERS = {
-    "islam makhachev": (
-        "Islam Makhachev",
-        "https://ufcstats.com/fighter-details/275aca31f61ba28c",
-    ),
-    "charles oliveira": (
-        "Charles Oliveira",
-        "https://ufcstats.com/fighter-details/07225ba28ae309b6",
-    ),
-}
+CITO_API_KEY = os.environ.get("CITO_API_KEY", "").strip()
 
 session = requests.Session()
-session.headers.update(HEADERS)
+session.headers.update({
+    "Accept": "application/json",
+    "User-Agent": "FLUX-AI-Sports/5.1",
+})
 
 
 class UFCProviderError(Exception):
@@ -59,10 +36,13 @@ def normalize_name(value: str) -> str:
 
 
 def safe_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+
     text = clean_text(value)
     text = text.replace("%", "").replace(",", ".")
 
-    if not text or text in {"--", "---"}:
+    if not text or text in {"--", "---", "null", "none"}:
         return None
 
     try:
@@ -79,404 +59,576 @@ def similarity(first: str, second: str) -> float:
     ).ratio()
 
 
-def request_page(url: str) -> BeautifulSoup:
-    url = clean_text(url).replace("http://ufcstats.com", BASE_URL)
+def require_api_key() -> str:
+    if not CITO_API_KEY:
+        raise UFCProviderError(
+            "CITO_API_KEY is missing in Render Environment."
+        )
+
+    return CITO_API_KEY
+
+
+def api_get(
+    path: str,
+    params: Optional[Dict[str, Any]] = None,
+) -> Any:
+    api_key = require_api_key()
+    url = f"{BASE_URL}{path}"
 
     try:
         response = session.get(
             url,
+            params=params,
+            headers={"x-api-key": api_key},
             timeout=REQUEST_TIMEOUT,
-            allow_redirects=True,
         )
-        response.raise_for_status()
     except requests.RequestException as error:
         raise UFCProviderError(
-            f"UFCStats request failed: {type(error).__name__}: {error}"
+            f"Cito API connection failed: {type(error).__name__}: {error}"
         ) from error
 
-    html = response.text or ""
-
-    if len(html) < 500:
+    if response.status_code == 401:
         raise UFCProviderError(
-            f"UFCStats returned an unexpectedly short page "
-            f"(status={response.status_code}, chars={len(html)})."
+            "Cito API rejected the key. Check CITO_API_KEY."
         )
 
-    lowered = html.lower()
-
-    blocked_markers = (
-        "access denied",
-        "captcha",
-        "cloudflare",
-        "temporarily unavailable",
-        "request blocked",
-    )
-
-    if any(marker in lowered for marker in blocked_markers):
+    if response.status_code == 403:
         raise UFCProviderError(
-            "UFCStats appears to have blocked or challenged the request."
+            "Cito API access denied for this endpoint or plan."
         )
 
-    return BeautifulSoup(html, "html.parser")
+    if response.status_code == 404:
+        raise UFCProviderError(
+            f"Cito API endpoint or record was not found: {path}"
+        )
+
+    if response.status_code == 429:
+        raise UFCProviderError(
+            "Cito API rate limit reached. Try again later."
+        )
+
+    if not response.ok:
+        raise UFCProviderError(
+            f"Cito API error {response.status_code}: "
+            f"{response.text[:300]}"
+        )
+
+    try:
+        return response.json()
+    except ValueError as error:
+        raise UFCProviderError(
+            "Cito API returned invalid JSON."
+        ) from error
 
 
-def direct_fighter(fighter_name: str) -> Optional[Dict[str, Any]]:
-    normalized = normalize_name(fighter_name)
-    direct = DIRECT_FIGHTERS.get(normalized)
+def walk_dicts(value: Any) -> Iterable[Dict[str, Any]]:
+    if isinstance(value, dict):
+        yield value
 
-    if not direct:
-        return None
+        for nested in value.values():
+            yield from walk_dicts(nested)
 
-    display_name, profile_url = direct
+    elif isinstance(value, list):
+        for item in value:
+            yield from walk_dicts(item)
 
-    return {
-        "name": display_name,
-        "url": profile_url,
-        "record": "",
-        "similarity": 1.0,
-        "lookup": "direct",
+
+def first_value(
+    data: Dict[str, Any],
+    *keys: str,
+) -> Any:
+    lowered = {
+        str(key).lower(): value
+        for key, value in data.items()
     }
 
+    for key in keys:
+        value = lowered.get(key.lower())
 
-def get_search_letters(name: str) -> List[str]:
-    parts = normalize_name(name).split()
+        if value not in (None, "", [], {}):
+            return value
 
-    if not parts:
-        return []
-
-    # UFCStats list pages are organized by surname initial.
-    # Try last-name initial first, then first-name initial.
-    letters = []
-
-    for part in [parts[-1], parts[0], *parts[1:-1]]:
-        if part and part[0].isalpha() and part[0] not in letters:
-            letters.append(part[0])
-
-    return letters[:3]
+    return None
 
 
-@lru_cache(maxsize=64)
-def get_fighters_by_letter(letter: str) -> List[Dict[str, str]]:
-    letter = clean_text(letter).lower()[:1]
-
-    if not letter or not letter.isalpha():
-        return []
-
-    soup = request_page(
-        f"{BASE_URL}/statistics/fighters?char={letter}&page=all"
+def extract_name(data: Dict[str, Any]) -> str:
+    direct = first_value(
+        data,
+        "name",
+        "fullName",
+        "full_name",
+        "displayName",
+        "display_name",
+        "fighterName",
+        "fighter_name",
+        "athleteName",
+        "athlete_name",
     )
 
-    fighters: List[Dict[str, str]] = []
+    if direct:
+        return clean_text(direct)
 
-    for row in soup.select("tr.b-statistics__table-row"):
-        columns = row.select("td.b-statistics__table-col")
+    first_name = first_value(
+        data,
+        "firstName",
+        "first_name",
+        "givenName",
+        "given_name",
+    )
+    last_name = first_value(
+        data,
+        "lastName",
+        "last_name",
+        "familyName",
+        "family_name",
+    )
 
-        if len(columns) < 10:
-            continue
+    return clean_text(f"{first_name or ''} {last_name or ''}")
 
-        profile_links = row.select(
-            "a.b-link.b-link_style_black[href*='/fighter-details/']"
+
+def extract_slug(data: Dict[str, Any]) -> str:
+    value = first_value(
+        data,
+        "slug",
+        "fighterSlug",
+        "fighter_slug",
+        "athleteSlug",
+        "athlete_slug",
+        "id",
+        "fighterId",
+        "fighter_id",
+        "athleteId",
+        "athlete_id",
+    )
+
+    return clean_text(value)
+
+
+def looks_like_fighter(data: Dict[str, Any]) -> bool:
+    name = extract_name(data)
+    slug = extract_slug(data)
+
+    if not name or not slug:
+        return False
+
+    type_value = clean_text(
+        first_value(
+            data,
+            "type",
+            "entityType",
+            "entity_type",
+            "kind",
+            "category",
         )
+    ).lower()
 
-        if not profile_links:
-            profile_links = row.select("a[href*='/fighter-details/']")
+    if type_value and not any(
+        word in type_value
+        for word in ("fighter", "athlete", "competitor")
+    ):
+        return False
 
-        if not profile_links:
+    return True
+
+
+def find_best_fighter(
+    search_payload: Any,
+    requested_name: str,
+) -> Optional[Dict[str, Any]]:
+    candidates = []
+
+    for item in walk_dicts(search_payload):
+        if not looks_like_fighter(item):
             continue
 
-        profile_url = clean_text(profile_links[0].get("href"))
-        profile_url = profile_url.replace("http://ufcstats.com", BASE_URL)
+        name = extract_name(item)
+        score = similarity(requested_name, name)
 
-        first_name = clean_text(columns[0].get_text(" ", strip=True))
-        last_name = clean_text(columns[1].get_text(" ", strip=True))
-        full_name = clean_text(f"{first_name} {last_name}")
-
-        if not full_name or not profile_url:
-            continue
-
-        wins = clean_text(columns[7].get_text(" ", strip=True))
-        losses = clean_text(columns[8].get_text(" ", strip=True))
-        draws = clean_text(columns[9].get_text(" ", strip=True))
-
-        record = (
-            f"{wins}-{losses}-{draws}"
-            if wins and losses and draws
-            else ""
-        )
-
-        fighters.append({
-            "name": full_name,
-            "first_name": first_name,
-            "last_name": last_name,
-            "url": profile_url,
-            "record": record,
-            "lookup": "list",
+        candidates.append({
+            "name": name,
+            "slug": extract_slug(item),
+            "similarity": score,
+            "raw": item,
         })
 
-    print(
-        f"UFC_LIST_PARSED letter={letter} fighters={len(fighters)}",
-        flush=True,
+    if not candidates:
+        return None
+
+    target = normalize_name(requested_name)
+
+    for candidate in candidates:
+        if normalize_name(candidate["name"]) == target:
+            candidate["similarity"] = 1.0
+            return candidate
+
+    candidates.sort(
+        key=lambda item: item["similarity"],
+        reverse=True,
     )
 
-    return fighters
+    best = candidates[0]
+
+    if best["similarity"] < 0.66:
+        return None
+
+    return best
 
 
-def find_fighter(
-    fighter_name: str,
-    minimum_similarity: float = 0.70,
-) -> Optional[Dict[str, Any]]:
+@lru_cache(maxsize=256)
+def search_fighter(fighter_name: str) -> Optional[Dict[str, Any]]:
     fighter_name = clean_text(fighter_name)
 
     if not fighter_name:
         return None
 
-    direct = direct_fighter(fighter_name)
+    payload = api_get(
+        "/ufc/search",
+        params={"q": fighter_name},
+    )
 
-    if direct:
-        return direct
+    best = find_best_fighter(
+        payload,
+        fighter_name,
+    )
 
-    target = normalize_name(fighter_name)
-    candidates: List[Dict[str, Any]] = []
-    seen_urls = set()
-    errors = []
-
-    for letter in get_search_letters(fighter_name):
-        try:
-            letter_fighters = get_fighters_by_letter(letter)
-        except UFCProviderError as error:
-            errors.append(f"{letter}: {error}")
-            continue
-
-        for fighter in letter_fighters:
-            url = fighter.get("url")
-
-            if not url or url in seen_urls:
-                continue
-
-            seen_urls.add(url)
-            candidates.append(fighter)
-
-    for fighter in candidates:
-        if normalize_name(fighter["name"]) == target:
-            result = dict(fighter)
-            result["similarity"] = 1.0
-            return result
-
-    if not candidates:
-        if errors:
-            print(
-                "UFC_SEARCH_ERRORS:",
-                " | ".join(errors),
-                flush=True,
-            )
-        return None
-
-    scored = sorted(
-        (
-            similarity(fighter_name, fighter["name"]),
-            fighter,
+    if best:
+        print(
+            f"CITO_UFC_SEARCH requested={fighter_name!r} "
+            f"found={best['name']!r} "
+            f"slug={best['slug']!r} "
+            f"score={best['similarity']:.3f}",
+            flush=True,
         )
-        for fighter in candidates
-    )
-    best_score, best_fighter = scored[-1]
+    else:
+        print(
+            f"CITO_UFC_SEARCH_NOT_FOUND requested={fighter_name!r}",
+            flush=True,
+        )
 
-    print(
-        f"UFC_SEARCH name={fighter_name!r} "
-        f"best={best_fighter['name']!r} score={best_score:.3f}",
-        flush=True,
-    )
-
-    if best_score < minimum_similarity:
-        return None
-
-    result = dict(best_fighter)
-    result["similarity"] = round(best_score, 3)
-    return result
+    return best
 
 
-def parse_profile_item(
-    soup: BeautifulSoup,
-    label: str,
-) -> Optional[str]:
-    wanted = normalize_name(label)
+def nested_value(
+    payload: Any,
+    *keys: str,
+) -> Any:
+    for item in walk_dicts(payload):
+        value = first_value(item, *keys)
 
-    for item in soup.select("li.b-list__box-list-item"):
-        title = item.select_one("i.b-list__box-item-title")
-
-        if not title:
-            continue
-
-        title_text = normalize_name(title.get_text(" ", strip=True))
-
-        if not title_text.startswith(wanted):
-            continue
-
-        full_text = clean_text(item.get_text(" ", strip=True))
-        visible_title = clean_text(title.get_text(" ", strip=True))
-        value = full_text.replace(visible_title, "", 1).strip()
-
-        return value or None
+        if value not in (None, "", [], {}):
+            return value
 
     return None
 
 
-def parse_record_from_title(soup: BeautifulSoup) -> Optional[str]:
-    title = soup.select_one("span.b-content__title-record")
-
-    if not title:
-        return None
-
-    text = clean_text(title.get_text(" ", strip=True))
-    match = re.search(
-        r"Record:\s*([0-9]+-[0-9]+-[0-9]+)",
-        text,
-        flags=re.IGNORECASE,
+def make_record(profile: Any) -> Optional[str]:
+    record = nested_value(
+        profile,
+        "record",
+        "professionalRecord",
+        "professional_record",
     )
 
-    return match.group(1) if match else None
+    if isinstance(record, str) and re.match(
+        r"^\d+\s*-\s*\d+\s*-\s*\d+",
+        record.strip(),
+    ):
+        return record.strip().replace(" ", "")
 
-
-def parse_fighter_name(soup: BeautifulSoup) -> Optional[str]:
-    title = soup.select_one("span.b-content__title-highlight")
-
-    if not title:
-        return None
-
-    return clean_text(title.get_text(" ", strip=True)) or None
-
-
-def parse_recent_fights(
-    soup: BeautifulSoup,
-    limit: int = 5,
-) -> List[Dict[str, Any]]:
-    fights = []
-
-    rows = soup.select(
-        "tr.b-fight-details__table-row.b-fight-details__table-row__hover"
+    wins = nested_value(
+        profile,
+        "wins",
+        "winCount",
+        "win_count",
+    )
+    losses = nested_value(
+        profile,
+        "losses",
+        "lossCount",
+        "loss_count",
+    )
+    draws = nested_value(
+        profile,
+        "draws",
+        "drawCount",
+        "draw_count",
     )
 
-    if not rows:
-        rows = soup.select("tr.b-fight-details__table-row[data-link]")
+    if wins is None or losses is None:
+        return None
 
-    for row in rows[:limit]:
-        columns = row.select("td.b-fight-details__table-col")
+    return f"{int(float(wins))}-{int(float(losses))}-{int(float(draws or 0))}"
 
-        if len(columns) < 10:
+
+def extract_stat(
+    payload: Any,
+    *keys: str,
+) -> Optional[float]:
+    value = nested_value(payload, *keys)
+    return safe_float(value)
+
+
+def extract_recent_fights(payload: Any, limit: int = 5) -> List[Dict[str, Any]]:
+    rows = []
+
+    for item in walk_dicts(payload):
+        result = clean_text(
+            first_value(
+                item,
+                "result",
+                "outcome",
+                "fighterResult",
+                "fighter_result",
+            )
+        ).upper()
+
+        opponent = clean_text(
+            first_value(
+                item,
+                "opponent",
+                "opponentName",
+                "opponent_name",
+            )
+        )
+
+        event = clean_text(
+            first_value(
+                item,
+                "event",
+                "eventName",
+                "event_name",
+                "eventTitle",
+                "event_title",
+            )
+        )
+
+        method = clean_text(
+            first_value(
+                item,
+                "method",
+                "resultMethod",
+                "result_method",
+                "finishMethod",
+                "finish_method",
+            )
+        )
+
+        date_value = clean_text(
+            first_value(
+                item,
+                "date",
+                "eventDate",
+                "event_date",
+                "startTime",
+                "start_time",
+            )
+        )
+
+        if result not in {"W", "L", "D", "NC"}:
             continue
 
-        result = clean_text(columns[0].get_text(" ", strip=True))
-        fighter_names = [
-            clean_text(link.get_text(" ", strip=True))
-            for link in columns[1].select("a")
-            if clean_text(link.get_text(" ", strip=True))
-        ]
-
-        event_link = columns[6].select_one("a")
-        event_name = (
-            clean_text(event_link.get_text(" ", strip=True))
-            if event_link
-            else ""
-        )
-        event_url = clean_text(event_link.get("href")) if event_link else ""
-        event_url = event_url.replace("http://ufcstats.com", BASE_URL)
-
-        method_lines = [
-            clean_text(item.get_text(" ", strip=True))
-            for item in columns[7].select("p")
-            if clean_text(item.get_text(" ", strip=True))
-        ]
-
-        method = (
-            " ".join(method_lines)
-            if method_lines
-            else clean_text(columns[7].get_text(" ", strip=True))
-        )
-
-        date_element = columns[6].select_one(
-            ".b-fight-details__table-text"
-        )
-
-        fights.append({
+        rows.append({
             "result": result,
-            "fighters": fighter_names,
-            "event": event_name,
-            "event_url": event_url,
-            "date": (
-                clean_text(date_element.get_text(" ", strip=True))
-                if date_element
-                else ""
-            ),
+            "fighters": [opponent] if opponent else [],
+            "event": event,
+            "date": date_value,
             "method": method,
-            "round": clean_text(columns[8].get_text(" ", strip=True)),
-            "time": clean_text(columns[9].get_text(" ", strip=True)),
-            "fight_url": clean_text(row.get("data-link")).replace(
-                "http://ufcstats.com",
-                BASE_URL,
+            "round": clean_text(
+                first_value(
+                    item,
+                    "round",
+                    "finishRound",
+                    "finish_round",
+                )
+            ),
+            "time": clean_text(
+                first_value(
+                    item,
+                    "time",
+                    "finishTime",
+                    "finish_time",
+                )
             ),
         })
 
-    return fights
+        if len(rows) >= limit:
+            break
+
+    return rows
 
 
 @lru_cache(maxsize=256)
-def get_fighter_profile_by_url(profile_url: str) -> Dict[str, Any]:
-    profile_url = clean_text(profile_url).replace(
-        "http://ufcstats.com",
-        BASE_URL,
+def get_fighter_profile_by_slug(
+    slug: str,
+) -> Dict[str, Any]:
+    slug = clean_text(slug)
+
+    if not slug:
+        raise UFCProviderError("Fighter slug is missing.")
+
+    encoded_slug = quote(slug, safe="")
+
+    profile_payload = api_get(
+        f"/ufc/fighters/{encoded_slug}"
+    )
+    stats_payload = api_get(
+        f"/ufc/fighters/{encoded_slug}/stats"
+    )
+    fights_payload = api_get(
+        f"/ufc/fighters/{encoded_slug}/fights"
     )
 
-    if not profile_url:
-        raise UFCProviderError("Fighter profile URL is missing.")
-
-    soup = request_page(profile_url)
-    name = parse_fighter_name(soup)
+    name = clean_text(
+        nested_value(
+            profile_payload,
+            "name",
+            "fullName",
+            "full_name",
+            "displayName",
+            "display_name",
+        )
+    )
 
     if not name:
-        page_title = clean_text(
-            soup.title.get_text(" ", strip=True)
-            if soup.title
-            else ""
-        )
+        for item in walk_dicts(profile_payload):
+            possible = extract_name(item)
+
+            if possible:
+                name = possible
+                break
+
+    if not name:
         raise UFCProviderError(
-            f"Could not parse fighter profile. title={page_title!r}"
+            f"Could not read fighter name for slug: {slug}"
         )
 
     profile = {
         "name": name,
-        "record": parse_record_from_title(soup),
-        "height": parse_profile_item(soup, "Height"),
-        "weight": parse_profile_item(soup, "Weight"),
-        "reach": parse_profile_item(soup, "Reach"),
-        "stance": parse_profile_item(soup, "STANCE"),
-        "dob": parse_profile_item(soup, "DOB"),
-        "slpm": safe_float(parse_profile_item(soup, "SLpM")),
-        "striking_accuracy": safe_float(
-            parse_profile_item(soup, "Str. Acc.")
+        "record": make_record(profile_payload),
+        "height": clean_text(
+            nested_value(
+                profile_payload,
+                "height",
+                "heightText",
+                "height_text",
+            )
+        ) or None,
+        "weight": clean_text(
+            nested_value(
+                profile_payload,
+                "weight",
+                "weightText",
+                "weight_text",
+                "weightClass",
+                "weight_class",
+            )
+        ) or None,
+        "reach": clean_text(
+            nested_value(
+                profile_payload,
+                "reach",
+                "reachText",
+                "reach_text",
+            )
+        ) or None,
+        "stance": clean_text(
+            nested_value(
+                profile_payload,
+                "stance",
+                "fightingStance",
+                "fighting_stance",
+            )
+        ) or None,
+        "dob": clean_text(
+            nested_value(
+                profile_payload,
+                "dob",
+                "dateOfBirth",
+                "date_of_birth",
+                "birthDate",
+                "birth_date",
+            )
+        ) or None,
+        "slpm": extract_stat(
+            stats_payload,
+            "slpm",
+            "significantStrikesLandedPerMinute",
+            "significant_strikes_landed_per_minute",
+            "sigStrikesLandedPerMinute",
+            "sig_strikes_landed_per_minute",
         ),
-        "sapm": safe_float(parse_profile_item(soup, "SApM")),
-        "striking_defense": safe_float(
-            parse_profile_item(soup, "Str. Def")
+        "striking_accuracy": extract_stat(
+            stats_payload,
+            "strikingAccuracy",
+            "striking_accuracy",
+            "significantStrikeAccuracy",
+            "significant_strike_accuracy",
+            "sigStrAccuracy",
+            "sig_str_accuracy",
         ),
-        "takedown_average": safe_float(
-            parse_profile_item(soup, "TD Avg.")
+        "sapm": extract_stat(
+            stats_payload,
+            "sapm",
+            "significantStrikesAbsorbedPerMinute",
+            "significant_strikes_absorbed_per_minute",
+            "sigStrikesAbsorbedPerMinute",
+            "sig_strikes_absorbed_per_minute",
         ),
-        "takedown_accuracy": safe_float(
-            parse_profile_item(soup, "TD Acc.")
+        "striking_defense": extract_stat(
+            stats_payload,
+            "strikingDefense",
+            "striking_defense",
+            "significantStrikeDefense",
+            "significant_strike_defense",
+            "sigStrDefense",
+            "sig_str_defense",
         ),
-        "takedown_defense": safe_float(
-            parse_profile_item(soup, "TD Def.")
+        "takedown_average": extract_stat(
+            stats_payload,
+            "takedownAverage",
+            "takedown_average",
+            "takedownsPer15Minutes",
+            "takedowns_per_15_minutes",
+            "tdAvg",
+            "td_avg",
         ),
-        "submission_average": safe_float(
-            parse_profile_item(soup, "Sub. Avg.")
+        "takedown_accuracy": extract_stat(
+            stats_payload,
+            "takedownAccuracy",
+            "takedown_accuracy",
+            "tdAccuracy",
+            "td_accuracy",
         ),
-        "recent_fights": parse_recent_fights(soup, limit=5),
-        "profile_url": profile_url,
-        "source": "UFCStats",
+        "takedown_defense": extract_stat(
+            stats_payload,
+            "takedownDefense",
+            "takedown_defense",
+            "tdDefense",
+            "td_defense",
+        ),
+        "submission_average": extract_stat(
+            stats_payload,
+            "submissionAverage",
+            "submission_average",
+            "submissionAttemptsPer15Minutes",
+            "submission_attempts_per_15_minutes",
+            "subAvg",
+            "sub_avg",
+        ),
+        "recent_fights": extract_recent_fights(
+            fights_payload,
+            limit=5,
+        ),
+        "profile_url": (
+            f"https://citoapi.com/docs/api/ufc/"
+        ),
+        "source": "Cito API",
         "data_quality": "real",
+        "slug": slug,
     }
 
     print(
-        f"UFC_PROFILE_PARSED name={name!r} "
+        f"CITO_UFC_PROFILE name={name!r} "
         f"record={profile['record']!r} "
         f"recent_fights={len(profile['recent_fights'])}",
         flush=True,
@@ -488,16 +640,22 @@ def get_fighter_profile_by_url(profile_url: str) -> Dict[str, Any]:
 def get_fighter_profile(
     fighter_name: str,
 ) -> Optional[Dict[str, Any]]:
-    found = find_fighter(fighter_name)
+    found = search_fighter(fighter_name)
 
     if not found:
         return None
 
-    profile = get_fighter_profile_by_url(found["url"])
-    profile = dict(profile)
+    profile = dict(
+        get_fighter_profile_by_slug(
+            found["slug"]
+        )
+    )
+
     profile["search_name"] = clean_text(fighter_name)
-    profile["match_similarity"] = found.get("similarity", 1.0)
-    profile["lookup"] = found.get("lookup", "unknown")
+    profile["match_similarity"] = round(
+        found.get("similarity", 1.0),
+        3,
+    )
 
     return profile
 
@@ -507,23 +665,34 @@ def compare_fighters(
     fighter2_name: str,
 ) -> Dict[str, Any]:
     started_at = time.time()
-    errors = []
-
     fighter1 = None
     fighter2 = None
+    errors = []
 
     try:
-        fighter1 = get_fighter_profile(fighter1_name)
+        fighter1 = get_fighter_profile(
+            fighter1_name
+        )
     except UFCProviderError as error:
-        errors.append(f"{clean_text(fighter1_name)}: {error}")
+        errors.append(
+            f"{clean_text(fighter1_name)}: {error}"
+        )
 
     try:
-        fighter2 = get_fighter_profile(fighter2_name)
+        fighter2 = get_fighter_profile(
+            fighter2_name
+        )
     except UFCProviderError as error:
-        errors.append(f"{clean_text(fighter2_name)}: {error}")
+        errors.append(
+            f"{clean_text(fighter2_name)}: {error}"
+        )
 
     if errors:
-        print("UFC_COMPARE_ERRORS:", " | ".join(errors), flush=True)
+        print(
+            "CITO_UFC_COMPARE_ERRORS:",
+            " | ".join(errors),
+            flush=True,
+        )
 
     missing = []
 
@@ -538,7 +707,10 @@ def compare_fighters(
         "fighter2": fighter2,
         "missing": missing,
         "errors": errors,
-        "source": "UFCStats",
+        "source": "Cito API",
         "real_data": bool(fighter1 and fighter2),
-        "response_time_seconds": round(time.time() - started_at, 2),
+        "response_time_seconds": round(
+            time.time() - started_at,
+            2,
+        ),
     }
