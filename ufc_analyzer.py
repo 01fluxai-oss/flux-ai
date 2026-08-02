@@ -332,14 +332,14 @@ def get_stance(
         fighter.get("stance")
     )
 
-    if stance and stance not in {"--", "---", "â"}:
+    if stance and stance not in {"--", "---", "\u2014"}:
         return stance
 
     name = clean_text(
         fighter.get("name")
     ).lower()
 
-    return STANCE_FALLBACKS.get(name, "â")
+    return STANCE_FALLBACKS.get(name, "\u2014")
 
 
 def count_recent_finishes(
@@ -423,7 +423,7 @@ def build_fighter_rating(
         "name": clean_text(fighter.get("name")),
         "record": clean_text(
             fighter.get("record")
-        ) or "â",
+        ) or "\u2014",
         "form": round(form),
         "career": round(career),
         "striking": round(striking),
@@ -465,10 +465,10 @@ def build_fighter_rating(
         ),
         "height": clean_text(
             fighter.get("height")
-        ) or "â",
+        ) or "\u2014",
         "reach": clean_text(
             fighter.get("reach")
-        ) or "â",
+        ) or "\u2014",
         "stance": get_stance(fighter),
         "age": calculate_age(
             fighter.get("dob")
@@ -517,12 +517,12 @@ def confidence_label(
     language: str = "ru",
 ) -> str:
     if confidence >= 72:
-        return "High" if language == "en" else "ÐÑÑÐ¾ÐºÐ°Ñ"
+        return "High" if language == "en" else "\u0412\u044b\u0441\u043e\u043a\u0430\u044f"
 
     if confidence >= 60:
-        return "Medium" if language == "en" else "Ð¡ÑÐµÐ´Ð½ÑÑ"
+        return "Medium" if language == "en" else "\u0421\u0440\u0435\u0434\u043d\u044f\u044f"
 
-    return "Low" if language == "en" else "ÐÐ¸Ð·ÐºÐ°Ñ"
+    return "Low" if language == "en" else "\u041d\u0438\u0437\u043a\u0430\u044f"
 
 
 def risk_label(
@@ -530,12 +530,12 @@ def risk_label(
     language: str = "ru",
 ) -> str:
     if confidence >= 72:
-        return "Low" if language == "en" else "ÐÐ¸Ð·ÐºÐ¸Ð¹"
+        return "Low" if language == "en" else "\u041d\u0438\u0437\u043a\u0438\u0439"
 
     if confidence >= 60:
-        return "Medium" if language == "en" else "Ð¡ÑÐµÐ´Ð½Ð¸Ð¹"
+        return "Medium" if language == "en" else "\u0421\u0440\u0435\u0434\u043d\u0438\u0439"
 
-    return "High" if language == "en" else "ÐÑÑÐ¾ÐºÐ¸Ð¹"
+    return "High" if language == "en" else "\u0412\u044b\u0441\u043e\u043a\u0438\u0439"
 
 
 def method_scores(
@@ -648,11 +648,11 @@ def choose_method(
         },
         "Submission": {
             "en": "Submission",
-            "ru": "Ð¡Ð°Ð±Ð¼Ð¸ÑÐµÐ½",
+            "ru": "\u0421\u0430\u0431\u043c\u0438\u0448\u0435\u043d",
         },
         "Decision": {
             "en": "Decision",
-            "ru": "Ð ÐµÑÐµÐ½Ð¸Ðµ ÑÑÐ´ÐµÐ¹",
+            "ru": "\u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u0441\u0443\u0434\u0435\u0439",
         },
     }
 
@@ -670,15 +670,15 @@ def fighter_not_found_message(
 
     if language == "en":
         return (
-            "â ï¸ UFC fighter data was not found.\n\n"
+            "\u26a0\ufe0f UFC fighter data was not found.\n\n"
             f"Not found: {names}\n\n"
             "Check the fighter names and use their full English names."
         )
 
     return (
-        "â ï¸ ÐÐ°Ð½Ð½ÑÐµ Ð±Ð¾Ð¹ÑÐ° UFC Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½Ñ.\n\n"
-        f"ÐÐµ Ð½Ð°Ð¹Ð´ÐµÐ½Ð¾: {names}\n\n"
-        "ÐÑÐ¿Ð¾Ð»ÑÐ·ÑÐ¹ Ð¿Ð¾Ð»Ð½ÑÐµ Ð¸Ð¼ÐµÐ½Ð° Ð±Ð¾Ð¹ÑÐ¾Ð² Ð½Ð° Ð°Ð½Ð³Ð»Ð¸Ð¹ÑÐºÐ¾Ð¼ ÑÐ·ÑÐºÐµ."
+        "\u26a0\ufe0f \u0414\u0430\u043d\u043d\u044b\u0435 \u0431\u043e\u0439\u0446\u0430 UFC \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b.\n\n"
+        f"\u041d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e: {names}\n\n"
+        "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 \u043f\u043e\u043b\u043d\u044b\u0435 \u0438\u043c\u0435\u043d\u0430 \u0431\u043e\u0439\u0446\u043e\u0432 \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c \u044f\u0437\u044b\u043a\u0435."
     )
 
 
@@ -687,20 +687,20 @@ def provider_error_message(
 ) -> str:
     if language == "en":
         return (
-            "â ï¸ UFC statistics are temporarily unavailable.\n\n"
+            "\u26a0\ufe0f UFC statistics are temporarily unavailable.\n\n"
             "Please try again later."
         )
 
     return (
-        "â ï¸ Ð¡ÑÐ°ÑÐ¸ÑÑÐ¸ÐºÐ° UFC Ð²ÑÐµÐ¼ÐµÐ½Ð½Ð¾ Ð½ÐµÐ´Ð¾ÑÑÑÐ¿Ð½Ð°.\n\n"
-        "ÐÐ¾Ð¿ÑÐ¾Ð±ÑÐ¹ Ð²ÑÐ¿Ð¾Ð»Ð½Ð¸ÑÑ Ð°Ð½Ð°Ð»Ð¸Ð· Ð¿Ð¾Ð·Ð¶Ðµ."
+        "\u26a0\ufe0f \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 UFC \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430.\n\n"
+        "\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u0430\u043d\u0430\u043b\u0438\u0437 \u043f\u043e\u0437\u0436\u0435."
     )
 
 
 def format_age(
     age: Optional[int],
 ) -> str:
-    return str(age) if age is not None else "â"
+    return str(age) if age is not None else "\u2014"
 
 
 def analyze_ufc_match(
@@ -713,9 +713,9 @@ def analyze_ufc_match(
 
     if not fighter1 or not fighter2:
         return (
-            "ð¥ Send a UFC fight:\n\nFighter 1 - Fighter 2"
+            "\U0001f94a Send a UFC fight:\n\nFighter 1 - Fighter 2"
             if language == "en"
-            else "ð¥ ÐÑÐ¿ÑÐ°Ð²Ñ Ð±Ð¾Ð¹ UFC:\n\nÐÐ¾ÐµÑ 1 - ÐÐ¾ÐµÑ 2"
+            else "\U0001f94a \u041e\u0442\u043f\u0440\u0430\u0432\u044c \u0431\u043e\u0439 UFC:\n\n\u0411\u043e\u0435\u0446 1 - \u0411\u043e\u0435\u0446 2"
         )
 
     try:
@@ -810,18 +810,18 @@ def analyze_ufc_match(
 
     if language == "en":
         return (
-            "ð¥ FLUX AI UFC â FIGHT ANALYSIS\n\n"
+            "\U0001f94a FLUX AI UFC \u2014 FIGHT ANALYSIS\n\n"
             f"{data1['name']} vs {data2['name']}\n\n"
 
-            "ð WIN PROBABILITY\n"
-            f"â¢ {data1['name']}: {probability1}%\n"
-            f"â¢ {data2['name']}: {probability2}%\n\n"
+            "\U0001f4ca WIN PROBABILITY\n"
+            f"\u2022 {data1['name']}: {probability1}%\n"
+            f"\u2022 {data2['name']}: {probability2}%\n\n"
 
-            "â¡ FLUX RATINGS\n"
-            f"â¢ {data1['name']}: {round(data1['total_score'])}/100\n"
-            f"â¢ {data2['name']}: {round(data2['total_score'])}/100\n\n"
+            "\u26a1 FLUX RATINGS\n"
+            f"\u2022 {data1['name']}: {round(data1['total_score'])}/100\n"
+            f"\u2022 {data2['name']}: {round(data2['total_score'])}/100\n\n"
 
-            "ð¯ MODEL PICK\n"
+            "\U0001f3af MODEL PICK\n"
             f"Winner: {winner['name']}\n"
             f"Win probability: {winner_probability}%\n"
             f"Expected method: {expected_method}\n"
@@ -829,102 +829,102 @@ def analyze_ufc_match(
             f"AI Confidence: {confidence}% ({confidence_text})\n"
             f"Risk: {risk_text}\n\n"
 
-            "ð COMPARISON\n"
-            f"â¢ Record: {data1['record']} â {data2['record']}\n"
-            f"â¢ Recent form: {data1['form']} â {data2['form']}\n"
-            f"â¢ Striking: {data1['striking']} â {data2['striking']}\n"
-            f"â¢ Grappling: {data1['grappling']} â {data2['grappling']}\n"
-            f"â¢ Experience: {data1['experience']} â {data2['experience']}\n\n"
+            "\U0001f4c8 COMPARISON\n"
+            f"\u2022 Record: {data1['record']} \u2014 {data2['record']}\n"
+            f"\u2022 Recent form: {data1['form']} \u2014 {data2['form']}\n"
+            f"\u2022 Striking: {data1['striking']} \u2014 {data2['striking']}\n"
+            f"\u2022 Grappling: {data1['grappling']} \u2014 {data2['grappling']}\n"
+            f"\u2022 Experience: {data1['experience']} \u2014 {data2['experience']}\n\n"
 
-            "ð¥ FIGHT STATISTICS\n"
-            f"â¢ SLpM: {data1['slpm']:.2f} â {data2['slpm']:.2f}\n"
-            f"â¢ Striking accuracy: "
-            f"{round(data1['striking_accuracy'])}% â "
+            "\U0001f94b FIGHT STATISTICS\n"
+            f"\u2022 SLpM: {data1['slpm']:.2f} \u2014 {data2['slpm']:.2f}\n"
+            f"\u2022 Striking accuracy: "
+            f"{round(data1['striking_accuracy'])}% \u2014 "
             f"{round(data2['striking_accuracy'])}%\n"
-            f"â¢ Striking defense: "
-            f"{round(data1['striking_defense'])}% â "
+            f"\u2022 Striking defense: "
+            f"{round(data1['striking_defense'])}% \u2014 "
             f"{round(data2['striking_defense'])}%\n"
-            f"â¢ Takedown average: "
-            f"{data1['takedown_average']:.2f} â "
+            f"\u2022 Takedown average: "
+            f"{data1['takedown_average']:.2f} \u2014 "
             f"{data2['takedown_average']:.2f}\n"
-            f"â¢ Takedown defense: "
-            f"{round(data1['takedown_defense'])}% â "
+            f"\u2022 Takedown defense: "
+            f"{round(data1['takedown_defense'])}% \u2014 "
             f"{round(data2['takedown_defense'])}%\n"
-            f"â¢ Submission average: "
-            f"{data1['submission_average']:.2f} â "
+            f"\u2022 Submission average: "
+            f"{data1['submission_average']:.2f} \u2014 "
             f"{data2['submission_average']:.2f}\n\n"
 
-            "ð PHYSICAL DATA\n"
-            f"â¢ Age: {format_age(data1['age'])} â "
+            "\U0001f4cf PHYSICAL DATA\n"
+            f"\u2022 Age: {format_age(data1['age'])} \u2014 "
             f"{format_age(data2['age'])}\n"
-            f"â¢ Height: {data1['height']} â {data2['height']}\n"
-            f"â¢ Reach: {data1['reach']} â {data2['reach']}\n"
-            f"â¢ Stance: {data1['stance']} â {data2['stance']}\n\n"
+            f"\u2022 Height: {data1['height']} \u2014 {data2['height']}\n"
+            f"\u2022 Reach: {data1['reach']} \u2014 {data2['reach']}\n"
+            f"\u2022 Stance: {data1['stance']} \u2014 {data2['stance']}\n\n"
 
-            f"ð¡ Source: {source}\n"
-            f"â± Data load: {response_time} sec\n"
-            "ð§ª Model: FLUX AI UFC Beta v1.1\n\n"
+            f"\U0001f4e1 Source: {source}\n"
+            f"\u23f1 Data load: {response_time} sec\n"
+            "\U0001f9ea Model: FLUX AI UFC Beta v1.1\n\n"
 
-            "â ï¸ The prediction is based on available historical "
+            "\u26a0\ufe0f The prediction is based on available historical "
             "statistics and does not guarantee the fight result."
         )
 
     return (
-        "ð¥ FLUX AI UFC â ÐÐÐÐÐÐ ÐÐÐ¯\n\n"
+        "\U0001f94a FLUX AI UFC \u2014 \u0410\u041d\u0410\u041b\u0418\u0417 \u0411\u041e\u042f\n\n"
         f"{data1['name']} vs {data2['name']}\n\n"
 
-        "ð ÐÐÐ ÐÐ¯Ð¢ÐÐÐ¡Ð¢Ð¬ ÐÐÐÐÐÐ«\n"
-        f"â¢ {data1['name']}: {probability1}%\n"
-        f"â¢ {data2['name']}: {probability2}%\n\n"
+        "\U0001f4ca \u0412\u0415\u0420\u041e\u042f\u0422\u041d\u041e\u0421\u0422\u042c \u041f\u041e\u0411\u0415\u0414\u042b\n"
+        f"\u2022 {data1['name']}: {probability1}%\n"
+        f"\u2022 {data2['name']}: {probability2}%\n\n"
 
-        "â¡ FLUX Ð ÐÐÐ¢ÐÐÐÐ\n"
-        f"â¢ {data1['name']}: {round(data1['total_score'])}/100\n"
-        f"â¢ {data2['name']}: {round(data2['total_score'])}/100\n\n"
+        "\u26a1 FLUX \u0420\u0415\u0419\u0422\u0418\u041d\u0413\u0418\n"
+        f"\u2022 {data1['name']}: {round(data1['total_score'])}/100\n"
+        f"\u2022 {data2['name']}: {round(data2['total_score'])}/100\n\n"
 
-        "ð¯ ÐÐ ÐÐÐÐÐ ÐÐÐÐÐÐ\n"
-        f"ÐÐ¾Ð±ÐµÐ´Ð¸ÑÐµÐ»Ñ: {winner['name']}\n"
-        f"ÐÐµÑÐ¾ÑÑÐ½Ð¾ÑÑÑ Ð¿Ð¾Ð±ÐµÐ´Ñ: {winner_probability}%\n"
-        f"ÐÐ¶Ð¸Ð´Ð°ÐµÐ¼ÑÐ¹ ÑÐ¿Ð¾ÑÐ¾Ð±: {expected_method}\n"
-        f"Ð£Ð²ÐµÑÐµÐ½Ð½Ð¾ÑÑÑ Ð² ÑÐ¿Ð¾ÑÐ¾Ð±Ðµ: {method_confidence}%\n"
+        "\U0001f3af \u041f\u0420\u041e\u0413\u041d\u041e\u0417 \u041c\u041e\u0414\u0415\u041b\u0418\n"
+        f"\u041f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044c: {winner['name']}\n"
+        f"\u0412\u0435\u0440\u043e\u044f\u0442\u043d\u043e\u0441\u0442\u044c \u043f\u043e\u0431\u0435\u0434\u044b: {winner_probability}%\n"
+        f"\u041e\u0436\u0438\u0434\u0430\u0435\u043c\u044b\u0439 \u0441\u043f\u043e\u0441\u043e\u0431: {expected_method}\n"
+        f"\u0423\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u0441\u0442\u044c \u0432 \u0441\u043f\u043e\u0441\u043e\u0431\u0435: {method_confidence}%\n"
         f"AI Confidence: {confidence}% ({confidence_text})\n"
-        f"Ð Ð¸ÑÐº: {risk_text}\n\n"
+        f"\u0420\u0438\u0441\u043a: {risk_text}\n\n"
 
-        "ð Ð¡Ð ÐÐÐÐÐÐÐ\n"
-        f"â¢ Ð ÐµÐºÐ¾ÑÐ´: {data1['record']} â {data2['record']}\n"
-        f"â¢ ÐÐ¾ÑÐ»ÐµÐ´Ð½ÑÑ ÑÐ¾ÑÐ¼Ð°: {data1['form']} â {data2['form']}\n"
-        f"â¢ Ð¡ÑÐ¾Ð¹ÐºÐ°: {data1['striking']} â {data2['striking']}\n"
-        f"â¢ ÐÐ¾ÑÑÐ±Ð°: {data1['grappling']} â {data2['grappling']}\n"
-        f"â¢ ÐÐ¿ÑÑ: {data1['experience']} â {data2['experience']}\n\n"
+        "\U0001f4c8 \u0421\u0420\u0410\u0412\u041d\u0415\u041d\u0418\u0415\n"
+        f"\u2022 \u0420\u0435\u043a\u043e\u0440\u0434: {data1['record']} \u2014 {data2['record']}\n"
+        f"\u2022 \u041f\u043e\u0441\u043b\u0435\u0434\u043d\u044f\u044f \u0444\u043e\u0440\u043c\u0430: {data1['form']} \u2014 {data2['form']}\n"
+        f"\u2022 \u0421\u0442\u043e\u0439\u043a\u0430: {data1['striking']} \u2014 {data2['striking']}\n"
+        f"\u2022 \u0411\u043e\u0440\u044c\u0431\u0430: {data1['grappling']} \u2014 {data2['grappling']}\n"
+        f"\u2022 \u041e\u043f\u044b\u0442: {data1['experience']} \u2014 {data2['experience']}\n\n"
 
-        "ð¥ Ð¡Ð¢ÐÐ¢ÐÐ¡Ð¢ÐÐÐ ÐÐÐ¯\n"
-        f"â¢ Ð£Ð´Ð°ÑÑ Ð² Ð¼Ð¸Ð½ÑÑÑ: {data1['slpm']:.2f} â {data2['slpm']:.2f}\n"
-        f"â¢ Ð¢Ð¾ÑÐ½Ð¾ÑÑÑ ÑÐ´Ð°ÑÐ¾Ð²: "
-        f"{round(data1['striking_accuracy'])}% â "
+        "\U0001f94b \u0421\u0422\u0410\u0422\u0418\u0421\u0422\u0418\u041a\u0410 \u0411\u041e\u042f\n"
+        f"\u2022 \u0423\u0434\u0430\u0440\u044b \u0432 \u043c\u0438\u043d\u0443\u0442\u0443: {data1['slpm']:.2f} \u2014 {data2['slpm']:.2f}\n"
+        f"\u2022 \u0422\u043e\u0447\u043d\u043e\u0441\u0442\u044c \u0443\u0434\u0430\u0440\u043e\u0432: "
+        f"{round(data1['striking_accuracy'])}% \u2014 "
         f"{round(data2['striking_accuracy'])}%\n"
-        f"â¢ ÐÐ°ÑÐ¸ÑÐ° Ð¾Ñ ÑÐ´Ð°ÑÐ¾Ð²: "
-        f"{round(data1['striking_defense'])}% â "
+        f"\u2022 \u0417\u0430\u0449\u0438\u0442\u0430 \u043e\u0442 \u0443\u0434\u0430\u0440\u043e\u0432: "
+        f"{round(data1['striking_defense'])}% \u2014 "
         f"{round(data2['striking_defense'])}%\n"
-        f"â¢ Ð¢ÐµÐ¹ÐºÐ´Ð°ÑÐ½Ñ: "
-        f"{data1['takedown_average']:.2f} â "
+        f"\u2022 \u0422\u0435\u0439\u043a\u0434\u0430\u0443\u043d\u044b: "
+        f"{data1['takedown_average']:.2f} \u2014 "
         f"{data2['takedown_average']:.2f}\n"
-        f"â¢ ÐÐ°ÑÐ¸ÑÐ° Ð¾Ñ ÑÐµÐ¹ÐºÐ´Ð°ÑÐ½Ð¾Ð²: "
-        f"{round(data1['takedown_defense'])}% â "
+        f"\u2022 \u0417\u0430\u0449\u0438\u0442\u0430 \u043e\u0442 \u0442\u0435\u0439\u043a\u0434\u0430\u0443\u043d\u043e\u0432: "
+        f"{round(data1['takedown_defense'])}% \u2014 "
         f"{round(data2['takedown_defense'])}%\n"
-        f"â¢ Ð¡Ð°Ð±Ð¼Ð¸ÑÐµÐ½Ñ: "
-        f"{data1['submission_average']:.2f} â "
+        f"\u2022 \u0421\u0430\u0431\u043c\u0438\u0448\u0435\u043d\u044b: "
+        f"{data1['submission_average']:.2f} \u2014 "
         f"{data2['submission_average']:.2f}\n\n"
 
-        "ð Ð¤ÐÐÐÐ§ÐÐ¡ÐÐÐ ÐÐÐÐÐ«Ð\n"
-        f"â¢ ÐÐ¾Ð·ÑÐ°ÑÑ: {format_age(data1['age'])} â "
+        "\U0001f4cf \u0424\u0418\u0417\u0418\u0427\u0415\u0421\u041a\u0418\u0415 \u0414\u0410\u041d\u041d\u042b\u0415\n"
+        f"\u2022 \u0412\u043e\u0437\u0440\u0430\u0441\u0442: {format_age(data1['age'])} \u2014 "
         f"{format_age(data2['age'])}\n"
-        f"â¢ Ð Ð¾ÑÑ: {data1['height']} â {data2['height']}\n"
-        f"â¢ Ð Ð°Ð·Ð¼Ð°Ñ ÑÑÐº: {data1['reach']} â {data2['reach']}\n"
-        f"â¢ Ð¡ÑÐ¾Ð¹ÐºÐ°: {data1['stance']} â {data2['stance']}\n\n"
+        f"\u2022 \u0420\u043e\u0441\u0442: {data1['height']} \u2014 {data2['height']}\n"
+        f"\u2022 \u0420\u0430\u0437\u043c\u0430\u0445 \u0440\u0443\u043a: {data1['reach']} \u2014 {data2['reach']}\n"
+        f"\u2022 \u0421\u0442\u043e\u0439\u043a\u0430: {data1['stance']} \u2014 {data2['stance']}\n\n"
 
-        f"ð¡ ÐÑÑÐ¾ÑÐ½Ð¸Ðº: {source}\n"
-        f"â± ÐÐ°Ð³ÑÑÐ·ÐºÐ° Ð´Ð°Ð½Ð½ÑÑ: {response_time} ÑÐµÐº.\n"
-        "ð§ª ÐÐ¾Ð´ÐµÐ»Ñ: FLUX AI UFC Beta v1.1\n\n"
+        f"\U0001f4e1 \u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a: {source}\n"
+        f"\u23f1 \u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445: {response_time} \u0441\u0435\u043a.\n"
+        "\U0001f9ea \u041c\u043e\u0434\u0435\u043b\u044c: FLUX AI UFC Beta v1.1\n\n"
 
-        "â ï¸ ÐÑÐ¾Ð³Ð½Ð¾Ð· Ð¾ÑÐ½Ð¾Ð²Ð°Ð½ Ð½Ð° Ð´Ð¾ÑÑÑÐ¿Ð½Ð¾Ð¹ Ð¸ÑÑÐ¾ÑÐ¸ÑÐµÑÐºÐ¾Ð¹ ÑÑÐ°ÑÐ¸ÑÑÐ¸ÐºÐµ "
-        "Ð¸ Ð½Ðµ Ð³Ð°ÑÐ°Ð½ÑÐ¸ÑÑÐµÑ ÑÐµÐ·ÑÐ»ÑÑÐ°Ñ Ð±Ð¾Ñ."
+        "\u26a0\ufe0f \u041f\u0440\u043e\u0433\u043d\u043e\u0437 \u043e\u0441\u043d\u043e\u0432\u0430\u043d \u043d\u0430 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0439 \u0438\u0441\u0442\u043e\u0440\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0435 "
+        "\u0438 \u043d\u0435 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0440\u0443\u0435\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0431\u043e\u044f."
     )
