@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: ascii -*-
 import os
 from datetime import datetime
 from threading import Thread
@@ -72,8 +72,8 @@ def answer_callback_query(callback_id, text=None):
 def language_keyboard():
     return {
         "inline_keyboard": [[
-            {"text": "ðºð¸ English", "callback_data": "lang_en"},
-            {"text": "ð·ðº Ð ÑÑÑÐºÐ¸Ð¹", "callback_data": "lang_ru"},
+            {"text": "\U0001f1fa\U0001f1f8 English", "callback_data": "lang_en"},
+            {"text": "\U0001f1f7\U0001f1fa \u0420\u0443\u0441\u0441\u043a\u0438\u0439", "callback_data": "lang_ru"},
         ]]
     }
 
@@ -81,29 +81,29 @@ def language_keyboard():
 def main_menu(language="ru"):
     if language == "en":
         rows = [
-            ["â½ Football", "ð NBA"],
-            ["ð¾ Tennis", "ð¥ UFC"],
-            ["ð Tennis Today"],
-            ["ð¯ Analyze Match"],
-            ["ð Top 3 Today", "ð World Cup 2026"],
-            ["ð Results"],
-            ["ð Channel", "ð FLUX PRO"],
-            ["ð¤ My Profile"],
-            ["â¹ï¸ About", "ð Status"],
-            ["ð Language"],
+            ["\u26bd Football", "\U0001f3c0 NBA"],
+            ["\U0001f3be Tennis", "\U0001f94a UFC"],
+            ["\U0001f4c5 Tennis Today"],
+            ["\U0001f3af Analyze Match"],
+            ["\U0001f3c6 Top 3 Today", "\U0001f30d World Cup 2026"],
+            ["\U0001f4c8 Results"],
+            ["\U0001f3c6 Channel", "\U0001f48e FLUX PRO"],
+            ["\U0001f464 My Profile"],
+            ["\u2139\ufe0f About", "\U0001f4ca Status"],
+            ["\U0001f310 Language"],
         ]
     else:
         rows = [
-            ["â½ Ð¤ÑÑÐ±Ð¾Ð»", "ð NBA"],
-            ["ð¾ Ð¢ÐµÐ½Ð½Ð¸Ñ", "ð¥ UFC"],
-            ["ð Ð¢ÐµÐ½Ð½Ð¸Ñ ÑÐµÐ³Ð¾Ð´Ð½Ñ"],
-            ["ð¯ ÐÐ½Ð°Ð»Ð¸Ð· Ð¼Ð°ÑÑÐ°"],
-            ["ð Ð¢ÐÐ-3 Ð´Ð½Ñ", "ð Ð§Ð-2026"],
-            ["ð Ð ÐµÐ·ÑÐ»ÑÑÐ°ÑÑ"],
-            ["ð ÐÐ°Ð½Ð°Ð»", "ð FLUX PRO"],
-            ["ð¤ ÐÐ¾Ð¹ Ð¿ÑÐ¾ÑÐ¸Ð»Ñ"],
-            ["â¹ï¸ Ð Ð¿ÑÐ¾ÐµÐºÑÐµ", "ð Ð¡ÑÐ°ÑÑÑ"],
-            ["ð Ð¯Ð·ÑÐº"],
+            ["\u26bd \u0424\u0443\u0442\u0431\u043e\u043b", "\U0001f3c0 NBA"],
+            ["\U0001f3be \u0422\u0435\u043d\u043d\u0438\u0441", "\U0001f94a UFC"],
+            ["\U0001f4c5 \u0422\u0435\u043d\u043d\u0438\u0441 \u0441\u0435\u0433\u043e\u0434\u043d\u044f"],
+            ["\U0001f3af \u0410\u043d\u0430\u043b\u0438\u0437 \u043c\u0430\u0442\u0447\u0430"],
+            ["\U0001f3c6 \u0422\u041e\u041f-3 \u0434\u043d\u044f", "\U0001f30d \u0427\u041c-2026"],
+            ["\U0001f4c8 \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b"],
+            ["\U0001f3c6 \u041a\u0430\u043d\u0430\u043b", "\U0001f48e FLUX PRO"],
+            ["\U0001f464 \u041c\u043e\u0439 \u043f\u0440\u043e\u0444\u0438\u043b\u044c"],
+            ["\u2139\ufe0f \u041e \u043f\u0440\u043e\u0435\u043a\u0442\u0435", "\U0001f4ca \u0421\u0442\u0430\u0442\u0443\u0441"],
+            ["\U0001f310 \u042f\u0437\u044b\u043a"],
         ]
     return {
         "keyboard": rows,
@@ -115,9 +115,9 @@ def main_menu(language="ru"):
 def normalize_text(text):
     return (
         str(text or "")
-        .replace("â", "-")
-        .replace("â", "-")
-        .replace("â", "-")
+        .replace("\u2014", "-")
+        .replace("\u2013", "-")
+        .replace("\u2212", "-")
         .strip()
     )
 
@@ -144,10 +144,10 @@ def detect_matches(text):
 
 def sport_title(sport, language="ru"):
     titles = {
-        "football": {"ru": "â½ Ð¤ÑÑÐ±Ð¾Ð»", "en": "â½ Football"},
-        "nba": {"ru": "ð NBA", "en": "ð NBA"},
-        "tennis": {"ru": "ð¾ Ð¢ÐµÐ½Ð½Ð¸Ñ", "en": "ð¾ Tennis"},
-        "ufc": {"ru": "ð¥ UFC", "en": "ð¥ UFC"},
+        "football": {"ru": "\u26bd \u0424\u0443\u0442\u0431\u043e\u043b", "en": "\u26bd Football"},
+        "nba": {"ru": "\U0001f3c0 NBA", "en": "\U0001f3c0 NBA"},
+        "tennis": {"ru": "\U0001f3be \u0422\u0435\u043d\u043d\u0438\u0441", "en": "\U0001f3be Tennis"},
+        "ufc": {"ru": "\U0001f94a UFC", "en": "\U0001f94a UFC"},
     }
     return titles.get(sport, titles["football"]).get(language)
 
@@ -155,22 +155,22 @@ def sport_title(sport, language="ru"):
 def start_message(language="ru"):
     if language == "en":
         return (
-            "ð Welcome! I am FLUX AI Sports PRO v5.1\n\n"
-            "â½ Football analysis\nð NBA analysis\n"
-            "ð¾ Tennis analysis (Beta)\nð¥ UFC analysis (Beta)\n"
-            "ð Top 3 of the day\nð World Cup analysis\n"
-            "ð Results\nð FLUX PRO\n\n"
+            "\U0001f44b Welcome! I am FLUX AI Sports PRO v5.1\n\n"
+            "\u26bd Football analysis\n\U0001f3c0 NBA analysis\n"
+            "\U0001f3be Tennis analysis (Beta)\n\U0001f94a UFC analysis (Beta)\n"
+            "\U0001f3c6 Top 3 of the day\n\U0001f30d World Cup analysis\n"
+            "\U0001f4c8 Results\n\U0001f48e FLUX PRO\n\n"
             f"FREE: {FREE_DAILY_LIMIT} analyses per day\n"
             "PRO: unlimited\n\nChoose a sport, then send a matchup."
         )
     return (
-        "ð ÐÑÐ¸Ð²ÐµÑ! Ð¯ FLUX AI Sports PRO v5.1\n\n"
-        "â½ ÐÐ½Ð°Ð»Ð¸Ð· ÑÑÑÐ±Ð¾Ð»Ð°\nð ÐÐ½Ð°Ð»Ð¸Ð· NBA\n"
-        "ð¾ ÐÐ½Ð°Ð»Ð¸Ð· ÑÐµÐ½Ð½Ð¸ÑÐ° (Beta)\nð¥ ÐÐ½Ð°Ð»Ð¸Ð· UFC (Beta)\n"
-        "ð Ð¢ÐÐ-3 Ð´Ð½Ñ\nð ÐÐ½Ð°Ð»Ð¸Ð· Ð¼Ð°ÑÑÐµÐ¹ Ð§Ð\n"
-        "ð Ð ÐµÐ·ÑÐ»ÑÑÐ°ÑÑ\nð FLUX PRO\n\n"
-        f"FREE: {FREE_DAILY_LIMIT} Ð°Ð½Ð°Ð»Ð¸Ð·Ð¾Ð² Ð² Ð´ÐµÐ½Ñ\n"
-        "PRO: Ð±ÐµÐ·Ð»Ð¸Ð¼Ð¸Ñ\n\nÐÑÐ±ÐµÑÐ¸ Ð²Ð¸Ð´ ÑÐ¿Ð¾ÑÑÐ° Ð¸ Ð¾ÑÐ¿ÑÐ°Ð²Ñ ÑÐ¾Ð±ÑÑÐ¸Ðµ."
+        "\U0001f44b \u041f\u0440\u0438\u0432\u0435\u0442! \u042f FLUX AI Sports PRO v5.1\n\n"
+        "\u26bd \u0410\u043d\u0430\u043b\u0438\u0437 \u0444\u0443\u0442\u0431\u043e\u043b\u0430\n\U0001f3c0 \u0410\u043d\u0430\u043b\u0438\u0437 NBA\n"
+        "\U0001f3be \u0410\u043d\u0430\u043b\u0438\u0437 \u0442\u0435\u043d\u043d\u0438\u0441\u0430 (Beta)\n\U0001f94a \u0410\u043d\u0430\u043b\u0438\u0437 UFC (Beta)\n"
+        "\U0001f3c6 \u0422\u041e\u041f-3 \u0434\u043d\u044f\n\U0001f30d \u0410\u043d\u0430\u043b\u0438\u0437 \u043c\u0430\u0442\u0447\u0435\u0439 \u0427\u041c\n"
+        "\U0001f4c8 \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b\n\U0001f48e FLUX PRO\n\n"
+        f"FREE: {FREE_DAILY_LIMIT} \u0430\u043d\u0430\u043b\u0438\u0437\u043e\u0432 \u0432 \u0434\u0435\u043d\u044c\n"
+        "PRO: \u0431\u0435\u0437\u043b\u0438\u043c\u0438\u0442\n\n\u0412\u044b\u0431\u0435\u0440\u0438 \u0432\u0438\u0434 \u0441\u043f\u043e\u0440\u0442\u0430 \u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u044c \u0441\u043e\u0431\u044b\u0442\u0438\u0435."
     )
 
 
@@ -178,56 +178,56 @@ def help_message(language="ru"):
     if language == "en":
         return (
             "Choose a sport first:\n\n"
-            "â½ Real Madrid - Barcelona\n"
-            "ð Lakers - Celtics\n"
-            "ð¾ Carlos Alcaraz - Jannik Sinner\n"
-            "ð¥ Fighter 1 - Fighter 2"
+            "\u26bd Real Madrid - Barcelona\n"
+            "\U0001f3c0 Lakers - Celtics\n"
+            "\U0001f3be Carlos Alcaraz - Jannik Sinner\n"
+            "\U0001f94a Fighter 1 - Fighter 2"
         )
     return (
-        "Ð¡Ð½Ð°ÑÐ°Ð»Ð° Ð²ÑÐ±ÐµÑÐ¸ Ð²Ð¸Ð´ ÑÐ¿Ð¾ÑÑÐ°:\n\n"
-        "â½ Real Madrid - Barcelona\n"
-        "ð Lakers - Celtics\n"
-        "ð¾ Carlos Alcaraz - Jannik Sinner\n"
-        "ð¥ ÐÐ¾ÐµÑ 1 - ÐÐ¾ÐµÑ 2"
+        "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u044b\u0431\u0435\u0440\u0438 \u0432\u0438\u0434 \u0441\u043f\u043e\u0440\u0442\u0430:\n\n"
+        "\u26bd Real Madrid - Barcelona\n"
+        "\U0001f3c0 Lakers - Celtics\n"
+        "\U0001f3be Carlos Alcaraz - Jannik Sinner\n"
+        "\U0001f94a \u0411\u043e\u0435\u0446 1 - \u0411\u043e\u0435\u0446 2"
     )
 
 
 def about_message(language="ru"):
     if language == "en":
         return (
-            "â¹ï¸ FLUX AI analyzes football, NBA, tennis and UFC.\n\n"
+            "\u2139\ufe0f FLUX AI analyzes football, NBA, tennis and UFC.\n\n"
             "Tennis and UFC are in Beta. The current UFC module is a "
             "demo model until verified live statistics are connected.\n\n"
             "Predictions are informational and do not guarantee results."
         )
     return (
-        "â¹ï¸ FLUX AI Ð°Ð½Ð°Ð»Ð¸Ð·Ð¸ÑÑÐµÑ ÑÑÑÐ±Ð¾Ð», NBA, ÑÐµÐ½Ð½Ð¸Ñ Ð¸ UFC.\n\n"
-        "Ð¢ÐµÐ½Ð½Ð¸Ñ Ð¸ UFC ÑÐ°Ð±Ð¾ÑÐ°ÑÑ Ð² Beta. Ð¢ÐµÐºÑÑÐ¸Ð¹ UFC-Ð¼Ð¾Ð´ÑÐ»Ñ ÑÐ²Ð»ÑÐµÑÑÑ "
-        "Ð´ÐµÐ¼Ð¾Ð½ÑÑÑÐ°ÑÐ¸Ð¾Ð½Ð½ÑÐ¼ Ð´Ð¾ Ð¿Ð¾Ð´ÐºÐ»ÑÑÐµÐ½Ð¸Ñ Ð¿ÑÐ¾Ð²ÐµÑÐµÐ½Ð½Ð¾Ð¹ ÑÐµÐ°Ð»ÑÐ½Ð¾Ð¹ ÑÑÐ°ÑÐ¸ÑÑÐ¸ÐºÐ¸.\n\n"
-        "ÐÑÐ¾Ð³Ð½Ð¾Ð· Ð½Ðµ Ð³Ð°ÑÐ°Ð½ÑÐ¸ÑÑÐµÑ ÑÐµÐ·ÑÐ»ÑÑÐ°Ñ."
+        "\u2139\ufe0f FLUX AI \u0430\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u0443\u0435\u0442 \u0444\u0443\u0442\u0431\u043e\u043b, NBA, \u0442\u0435\u043d\u043d\u0438\u0441 \u0438 UFC.\n\n"
+        "\u0422\u0435\u043d\u043d\u0438\u0441 \u0438 UFC \u0440\u0430\u0431\u043e\u0442\u0430\u044e\u0442 \u0432 Beta. \u0422\u0435\u043a\u0443\u0449\u0438\u0439 UFC-\u043c\u043e\u0434\u0443\u043b\u044c \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f "
+        "\u0434\u0435\u043c\u043e\u043d\u0441\u0442\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u044b\u043c \u0434\u043e \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u0439 \u0440\u0435\u0430\u043b\u044c\u043d\u043e\u0439 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0438.\n\n"
+        "\u041f\u0440\u043e\u0433\u043d\u043e\u0437 \u043d\u0435 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0440\u0443\u0435\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442."
     )
 
 
 def status_message(language="ru"):
     if language == "en":
         return (
-            "â FLUX AI Sports is running.\n\n"
+            "\u2705 FLUX AI Sports is running.\n\n"
             "Version: PRO v5.1\n"
             "Sports: Football + NBA + Tennis Beta + UFC Beta\n"
             f"Channel: {CHANNEL_USERNAME}\nStatus: Online"
         )
     return (
-        "â FLUX AI Sports ÑÐ°Ð±Ð¾ÑÐ°ÐµÑ.\n\n"
-        "ÐÐµÑÑÐ¸Ñ: PRO v5.1\n"
-        "Ð¡Ð¿Ð¾ÑÑ: Ð¤ÑÑÐ±Ð¾Ð» + NBA + Ð¢ÐµÐ½Ð½Ð¸Ñ Beta + UFC Beta\n"
-        f"ÐÐ°Ð½Ð°Ð»: {CHANNEL_USERNAME}\nÐ¡ÑÐ°ÑÑÑ: Online"
+        "\u2705 FLUX AI Sports \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442.\n\n"
+        "\u0412\u0435\u0440\u0441\u0438\u044f: PRO v5.1\n"
+        "\u0421\u043f\u043e\u0440\u0442: \u0424\u0443\u0442\u0431\u043e\u043b + NBA + \u0422\u0435\u043d\u043d\u0438\u0441 Beta + UFC Beta\n"
+        f"\u041a\u0430\u043d\u0430\u043b: {CHANNEL_USERNAME}\n\u0421\u0442\u0430\u0442\u0443\u0441: Online"
     )
 
 
 def profile_message(user_id, language="ru"):
     user = get_user(user_id)
     if not user:
-        return "Profile not found." if language == "en" else "ÐÑÐ¾ÑÐ¸Ð»Ñ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½."
+        return "Profile not found." if language == "en" else "\u041f\u0440\u043e\u0444\u0438\u043b\u044c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d."
 
     pro_active = is_pro(user_id)
     usage = get_today_usage(user_id)
@@ -235,36 +235,36 @@ def profile_message(user_id, language="ru"):
 
     if language == "en":
         return (
-            "ð¤ MY PROFILE\n\n"
-            f"ð ID: {user_id}\n"
-            f"ð FLUX PRO: {'â Active' if pro_active else 'â Inactive'}\n"
-            f"ð¯ Selected sport: {sport_title(sport, 'en')}\n"
-            f"ð Analyses today: {'Unlimited' if pro_active else f'{usage}/{FREE_DAILY_LIMIT}'}"
+            "\U0001f464 MY PROFILE\n\n"
+            f"\U0001f194 ID: {user_id}\n"
+            f"\U0001f48e FLUX PRO: {'\u2705 Active' if pro_active else '\u274c Inactive'}\n"
+            f"\U0001f3af Selected sport: {sport_title(sport, 'en')}\n"
+            f"\U0001f4ca Analyses today: {'Unlimited' if pro_active else f'{usage}/{FREE_DAILY_LIMIT}'}"
         )
     return (
-        "ð¤ ÐÐÐ ÐÐ ÐÐ¤ÐÐÐ¬\n\n"
-        f"ð ID: {user_id}\n"
-        f"ð FLUX PRO: {'â ÐÐºÑÐ¸Ð²ÐµÐ½' if pro_active else 'â ÐÐµ Ð°ÐºÑÐ¸Ð²ÐµÐ½'}\n"
-        f"ð¯ ÐÑÐ±ÑÐ°Ð½Ð½ÑÐ¹ ÑÐ¿Ð¾ÑÑ: {sport_title(sport, 'ru')}\n"
-        f"ð ÐÐ½Ð°Ð»Ð¸Ð·Ñ ÑÐµÐ³Ð¾Ð´Ð½Ñ: {'ÐÐµÐ·Ð»Ð¸Ð¼Ð¸Ñ' if pro_active else f'{usage}/{FREE_DAILY_LIMIT}'}"
+        "\U0001f464 \u041c\u041e\u0419 \u041f\u0420\u041e\u0424\u0418\u041b\u042c\n\n"
+        f"\U0001f194 ID: {user_id}\n"
+        f"\U0001f48e FLUX PRO: {'\u2705 \u0410\u043a\u0442\u0438\u0432\u0435\u043d' if pro_active else '\u274c \u041d\u0435 \u0430\u043a\u0442\u0438\u0432\u0435\u043d'}\n"
+        f"\U0001f3af \u0412\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0439 \u0441\u043f\u043e\u0440\u0442: {sport_title(sport, 'ru')}\n"
+        f"\U0001f4ca \u0410\u043d\u0430\u043b\u0438\u0437\u044b \u0441\u0435\u0433\u043e\u0434\u043d\u044f: {'\u0411\u0435\u0437\u043b\u0438\u043c\u0438\u0442' if pro_active else f'{usage}/{FREE_DAILY_LIMIT}'}"
     )
 
 
 def pro_message(language="ru"):
     if language == "en":
         return (
-            "ð FLUX AI PRO\n\n"
-            "â Unlimited analysis\n"
-            "â Football, NBA, Tennis and UFC\n"
-            "â Extended statistics\nâ Daily Top 3\n\n"
-            f"Price: â­{PRO_PRICE_STARS} / {PRO_DAYS} days"
+            "\U0001f48e FLUX AI PRO\n\n"
+            "\u2705 Unlimited analysis\n"
+            "\u2705 Football, NBA, Tennis and UFC\n"
+            "\u2705 Extended statistics\n\u2705 Daily Top 3\n\n"
+            f"Price: \u2b50{PRO_PRICE_STARS} / {PRO_DAYS} days"
         )
     return (
-        "ð FLUX AI PRO\n\n"
-        "â ÐÐµÐ·Ð»Ð¸Ð¼Ð¸ÑÐ½ÑÐ¹ Ð°Ð½Ð°Ð»Ð¸Ð·\n"
-        "â Ð¤ÑÑÐ±Ð¾Ð», NBA, ÑÐµÐ½Ð½Ð¸Ñ Ð¸ UFC\n"
-        "â Ð Ð°ÑÑÐ¸ÑÐµÐ½Ð½Ð°Ñ ÑÑÐ°ÑÐ¸ÑÑÐ¸ÐºÐ°\nâ Ð¢ÐÐ-3 Ð´Ð½Ñ\n\n"
-        f"Ð¡ÑÐ¾Ð¸Ð¼Ð¾ÑÑÑ: â­{PRO_PRICE_STARS} / {PRO_DAYS} Ð´Ð½ÐµÐ¹"
+        "\U0001f48e FLUX AI PRO\n\n"
+        "\u2705 \u0411\u0435\u0437\u043b\u0438\u043c\u0438\u0442\u043d\u044b\u0439 \u0430\u043d\u0430\u043b\u0438\u0437\n"
+        "\u2705 \u0424\u0443\u0442\u0431\u043e\u043b, NBA, \u0442\u0435\u043d\u043d\u0438\u0441 \u0438 UFC\n"
+        "\u2705 \u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\n\u2705 \u0422\u041e\u041f-3 \u0434\u043d\u044f\n\n"
+        f"\u0421\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c: \u2b50{PRO_PRICE_STARS} / {PRO_DAYS} \u0434\u043d\u0435\u0439"
     )
 
 
@@ -299,9 +299,9 @@ def analyze_group(text, language, analyzer):
         except Exception as error:
             print("ANALYSIS_ITEM_ERROR:", repr(error), flush=True)
             message = (
-                f"â ï¸ Could not analyze: {left} - {right}"
+                f"\u26a0\ufe0f Could not analyze: {left} - {right}"
                 if language == "en"
-                else f"â ï¸ ÐÐµ Ð¿Ð¾Ð»ÑÑÐ¸Ð»Ð¾ÑÑ: {left} - {right}"
+                else f"\u26a0\ufe0f \u041d\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u043b\u043e\u0441\u044c: {left} - {right}"
             )
             results.append(message if len(matches) == 1 else f"#{index}\n{message}")
     return "\n\n".join(results)
@@ -310,20 +310,20 @@ def analyze_group(text, language, analyzer):
 def analysis_prompt(sport, language="ru"):
     prompts = {
         "football": {
-            "en": "â½ Send a football match:\nReal Madrid - Barcelona",
-            "ru": "â½ ÐÐ°Ð¿Ð¸ÑÐ¸ ÑÑÑÐ±Ð¾Ð»ÑÐ½ÑÐ¹ Ð¼Ð°ÑÑ:\nReal Madrid - Barcelona",
+            "en": "\u26bd Send a football match:\nReal Madrid - Barcelona",
+            "ru": "\u26bd \u041d\u0430\u043f\u0438\u0448\u0438 \u0444\u0443\u0442\u0431\u043e\u043b\u044c\u043d\u044b\u0439 \u043c\u0430\u0442\u0447:\nReal Madrid - Barcelona",
         },
         "nba": {
-            "en": "ð Send an NBA game:\nLakers - Celtics",
-            "ru": "ð ÐÐ°Ð¿Ð¸ÑÐ¸ Ð¼Ð°ÑÑ NBA:\nLakers - Celtics",
+            "en": "\U0001f3c0 Send an NBA game:\nLakers - Celtics",
+            "ru": "\U0001f3c0 \u041d\u0430\u043f\u0438\u0448\u0438 \u043c\u0430\u0442\u0447 NBA:\nLakers - Celtics",
         },
         "tennis": {
-            "en": "ð¾ Send a tennis match:\nCarlos Alcaraz - Jannik Sinner",
-            "ru": "ð¾ ÐÑÐ¿ÑÐ°Ð²Ñ ÑÐµÐ½Ð½Ð¸ÑÐ½ÑÐ¹ Ð¼Ð°ÑÑ:\nCarlos Alcaraz - Jannik Sinner",
+            "en": "\U0001f3be Send a tennis match:\nCarlos Alcaraz - Jannik Sinner",
+            "ru": "\U0001f3be \u041e\u0442\u043f\u0440\u0430\u0432\u044c \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u043c\u0430\u0442\u0447:\nCarlos Alcaraz - Jannik Sinner",
         },
         "ufc": {
-            "en": "ð¥ Send a UFC fight:\nFighter 1 - Fighter 2",
-            "ru": "ð¥ ÐÑÐ¿ÑÐ°Ð²Ñ Ð±Ð¾Ð¹ UFC:\nÐÐ¾ÐµÑ 1 - ÐÐ¾ÐµÑ 2",
+            "en": "\U0001f94a Send a UFC fight:\nFighter 1 - Fighter 2",
+            "ru": "\U0001f94a \u041e\u0442\u043f\u0440\u0430\u0432\u044c \u0431\u043e\u0439 UFC:\n\u0411\u043e\u0435\u0446 1 - \u0411\u043e\u0435\u0446 2",
         },
     }
     return prompts.get(sport, prompts["football"])[language]
@@ -344,16 +344,16 @@ def handle_analysis(chat_id, user_id, text, language):
             return
         if len(matches) > remaining:
             message = (
-                f"ð Free analyses remaining: {remaining}"
+                f"\U0001f512 Free analyses remaining: {remaining}"
                 if language == "en"
-                else f"ð ÐÑÑÐ°Ð»Ð¾ÑÑ Ð±ÐµÑÐ¿Ð»Ð°ÑÐ½ÑÑ Ð°Ð½Ð°Ð»Ð¸Ð·Ð¾Ð²: {remaining}"
+                else f"\U0001f512 \u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0445 \u0430\u043d\u0430\u043b\u0438\u0437\u043e\u0432: {remaining}"
             )
             send_message(chat_id, message, main_menu(language))
             return
 
     send_message(
         chat_id,
-        "â³ Analyzing..." if language == "en" else "â³ ÐÐ½Ð°Ð»Ð¸Ð·Ð¸ÑÑÑ...",
+        "\u23f3 Analyzing..." if language == "en" else "\u23f3 \u0410\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u0443\u044e...",
         main_menu(language),
     )
 
@@ -377,7 +377,7 @@ def handle_analysis(chat_id, user_id, text, language):
         print("MATCH_ANALYSIS_ERROR:", repr(error), flush=True)
         send_message(
             chat_id,
-            "â ï¸ Analysis failed." if language == "en" else "â ï¸ ÐÐ½Ð°Ð»Ð¸Ð· Ð½Ðµ Ð²ÑÐ¿Ð¾Ð»Ð½ÐµÐ½.",
+            "\u26a0\ufe0f Analysis failed." if language == "en" else "\u26a0\ufe0f \u0410\u043d\u0430\u043b\u0438\u0437 \u043d\u0435 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d.",
             main_menu(language),
         )
 
@@ -427,9 +427,9 @@ def process_successful_payment(message):
     if not valid:
         send_message(
             chat_id,
-            "â ï¸ Payment verification failed."
+            "\u26a0\ufe0f Payment verification failed."
             if language == "en"
-            else "â ï¸ ÐÐ»Ð°ÑÑÐ¶ Ð½Ðµ Ð¿ÑÐ¾ÑÑÐ» Ð¿ÑÐ¾Ð²ÐµÑÐºÑ.",
+            else "\u26a0\ufe0f \u041f\u043b\u0430\u0442\u0451\u0436 \u043d\u0435 \u043f\u0440\u043e\u0448\u0451\u043b \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443.",
             main_menu(language),
         )
         return
@@ -445,9 +445,9 @@ def process_successful_payment(message):
     )
     send_message(
         chat_id,
-        "ð FLUX AI PRO activated!"
+        "\U0001f389 FLUX AI PRO activated!"
         if language == "en"
-        else "ð FLUX AI PRO Ð°ÐºÑÐ¸Ð²Ð¸ÑÐ¾Ð²Ð°Ð½!",
+        else "\U0001f389 FLUX AI PRO \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u043d!",
         main_menu(language),
     )
 
@@ -474,7 +474,7 @@ def process_callback_query(callback):
 
     if data == "lang_ru":
         set_user_language(user_id, "ru")
-        answer_callback_query(callback_id, "Ð¯Ð·ÑÐº Ð¸Ð·Ð¼ÐµÐ½ÑÐ½.")
+        answer_callback_query(callback_id, "\u042f\u0437\u044b\u043a \u0438\u0437\u043c\u0435\u043d\u0451\u043d.")
         send_message(chat_id, start_message("ru"), main_menu("ru"))
         return
 
@@ -495,37 +495,37 @@ def send_tennis_today(chat_id, language="ru"):
         if not matches:
             send_message(
                 chat_id,
-                "ð No matches found today."
+                "\U0001f4c5 No matches found today."
                 if language == "en"
-                else "ð ÐÐ°ÑÑÐ¸ Ð½Ð° ÑÐµÐ³Ð¾Ð´Ð½Ñ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½Ñ.",
+                else "\U0001f4c5 \u041c\u0430\u0442\u0447\u0438 \u043d\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b.",
                 main_menu(language),
             )
             return
 
-        lines = ["ð TENNIS TODAY" if language == "en" else "ð Ð¢ÐÐÐÐÐ¡ Ð¡ÐÐÐÐÐÐ¯"]
+        lines = ["\U0001f4c5 TENNIS TODAY" if language == "en" else "\U0001f4c5 \u0422\u0415\u041d\u041d\u0418\u0421 \u0421\u0415\u0413\u041e\u0414\u041d\u042f"]
         for index, match in enumerate(matches, 1):
-            live = " ð´ LIVE" if match.get("live") else ""
+            live = " \U0001f534 LIVE" if match.get("live") else ""
             tournament = match.get("tournament") or ""
-            tournament_line = f"\nð {tournament[:70]}" if tournament else ""
+            tournament_line = f"\n\U0001f3df {tournament[:70]}" if tournament else ""
             lines.append(
-                f"{index}. {match.get('time') or 'â'}{live} | "
-                f"{match.get('player1') or 'â'} â {match.get('player2') or 'â'}"
-                f"{tournament_line}\nð¾ {(match.get('surface') or 'hard').title()}"
+                f"{index}. {match.get('time') or '\u2014'}{live} | "
+                f"{match.get('player1') or '\u2014'} \u2014 {match.get('player2') or '\u2014'}"
+                f"{tournament_line}\n\U0001f3be {(match.get('surface') or 'hard').title()}"
             )
 
         instruction = (
             "\n\nTo analyze, send:\nPlayer 1 - Player 2 | surface"
             if language == "en"
-            else "\n\nÐÐ»Ñ Ð°Ð½Ð°Ð»Ð¸Ð·Ð° Ð¾ÑÐ¿ÑÐ°Ð²Ñ:\nÐÐ³ÑÐ¾Ðº 1 - ÐÐ³ÑÐ¾Ðº 2 | Ð¿Ð¾ÐºÑÑÑÐ¸Ðµ"
+            else "\n\n\u0414\u043b\u044f \u0430\u043d\u0430\u043b\u0438\u0437\u0430 \u043e\u0442\u043f\u0440\u0430\u0432\u044c:\n\u0418\u0433\u0440\u043e\u043a 1 - \u0418\u0433\u0440\u043e\u043a 2 | \u043f\u043e\u043a\u0440\u044b\u0442\u0438\u0435"
         )
         send_message(chat_id, "\n\n".join(lines) + instruction, main_menu(language))
     except Exception as error:
         print("TENNIS_TODAY_ERROR:", repr(error), flush=True)
         send_message(
             chat_id,
-            "â ï¸ Could not load tennis matches."
+            "\u26a0\ufe0f Could not load tennis matches."
             if language == "en"
-            else "â ï¸ ÐÐµ Ð¿Ð¾Ð»ÑÑÐ¸Ð»Ð¾ÑÑ Ð·Ð°Ð³ÑÑÐ·Ð¸ÑÑ ÑÐµÐ½Ð½Ð¸ÑÐ½ÑÐµ Ð¼Ð°ÑÑÐ¸.",
+            else "\u26a0\ufe0f \u041d\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0435 \u043c\u0430\u0442\u0447\u0438.",
             main_menu(language),
         )
 
@@ -577,27 +577,27 @@ def telegram_webhook():
         if text == "/start":
             send_message(
                 chat_id,
-                "â¡ Welcome to Flux AI\nChoose your language.\n\n"
-                "â¡ ÐÐ¾Ð±ÑÐ¾ Ð¿Ð¾Ð¶Ð°Ð»Ð¾Ð²Ð°ÑÑ Ð² Flux AI\nÐÑÐ±ÐµÑÐ¸ÑÐµ ÑÐ·ÑÐº.",
+                "\u26a1 Welcome to Flux AI\nChoose your language.\n\n"
+                "\u26a1 \u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 Flux AI\n\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a.",
                 language_keyboard(),
             )
             return "OK", 200
 
-        if text in ["/language", "ð Language", "ð Ð¯Ð·ÑÐº"]:
+        if text in ["/language", "\U0001f310 Language", "\U0001f310 \u042f\u0437\u044b\u043a"]:
             send_message(
                 chat_id,
-                "Choose your language.\n\nÐÑÐ±ÐµÑÐ¸ÑÐµ ÑÐ·ÑÐº.",
+                "Choose your language.\n\n\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a.",
                 language_keyboard(),
             )
             return "OK", 200
 
         sport_buttons = {
-            "â½ Ð¤ÑÑÐ±Ð¾Ð»": "football",
-            "â½ Football": "football",
-            "ð NBA": "nba",
-            "ð¾ Ð¢ÐµÐ½Ð½Ð¸Ñ": "tennis",
-            "ð¾ Tennis": "tennis",
-            "ð¥ UFC": "ufc",
+            "\u26bd \u0424\u0443\u0442\u0431\u043e\u043b": "football",
+            "\u26bd Football": "football",
+            "\U0001f3c0 NBA": "nba",
+            "\U0001f3be \u0422\u0435\u043d\u043d\u0438\u0441": "tennis",
+            "\U0001f3be Tennis": "tennis",
+            "\U0001f94a UFC": "ufc",
         }
 
         if text in sport_buttons:
@@ -610,7 +610,7 @@ def telegram_webhook():
             )
             return "OK", 200
 
-        if text in ["ð¯ ÐÐ½Ð°Ð»Ð¸Ð· Ð¼Ð°ÑÑÐ°", "ð¯ Analyze Match"]:
+        if text in ["\U0001f3af \u0410\u043d\u0430\u043b\u0438\u0437 \u043c\u0430\u0442\u0447\u0430", "\U0001f3af Analyze Match"]:
             send_message(
                 chat_id,
                 analysis_prompt(get_user_sport(user_id) or "football", language),
@@ -619,23 +619,23 @@ def telegram_webhook():
             return "OK", 200
 
         commands = {
-            "ð Ð¢ÐµÐ½Ð½Ð¸Ñ ÑÐµÐ³Ð¾Ð´Ð½Ñ": "/tennis_today",
-            "ð Tennis Today": "/tennis_today",
-            "ð Ð¢ÐÐ-3 Ð´Ð½Ñ": "/today",
-            "ð Top 3 Today": "/today",
-            "ð Ð§Ð-2026": "/worldcup",
-            "ð World Cup 2026": "/worldcup",
-            "ð Ð ÐµÐ·ÑÐ»ÑÑÐ°ÑÑ": "/results",
-            "ð Results": "/results",
-            "ð ÐÐ°Ð½Ð°Ð»": "/channel",
-            "ð Channel": "/channel",
-            "ð FLUX PRO": "/pro",
-            "ð¤ ÐÐ¾Ð¹ Ð¿ÑÐ¾ÑÐ¸Ð»Ñ": "/profile",
-            "ð¤ My Profile": "/profile",
-            "â¹ï¸ Ð Ð¿ÑÐ¾ÐµÐºÑÐµ": "/about",
-            "â¹ï¸ About": "/about",
-            "ð Ð¡ÑÐ°ÑÑÑ": "/status",
-            "ð Status": "/status",
+            "\U0001f4c5 \u0422\u0435\u043d\u043d\u0438\u0441 \u0441\u0435\u0433\u043e\u0434\u043d\u044f": "/tennis_today",
+            "\U0001f4c5 Tennis Today": "/tennis_today",
+            "\U0001f3c6 \u0422\u041e\u041f-3 \u0434\u043d\u044f": "/today",
+            "\U0001f3c6 Top 3 Today": "/today",
+            "\U0001f30d \u0427\u041c-2026": "/worldcup",
+            "\U0001f30d World Cup 2026": "/worldcup",
+            "\U0001f4c8 \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b": "/results",
+            "\U0001f4c8 Results": "/results",
+            "\U0001f3c6 \u041a\u0430\u043d\u0430\u043b": "/channel",
+            "\U0001f3c6 Channel": "/channel",
+            "\U0001f48e FLUX PRO": "/pro",
+            "\U0001f464 \u041c\u043e\u0439 \u043f\u0440\u043e\u0444\u0438\u043b\u044c": "/profile",
+            "\U0001f464 My Profile": "/profile",
+            "\u2139\ufe0f \u041e \u043f\u0440\u043e\u0435\u043a\u0442\u0435": "/about",
+            "\u2139\ufe0f About": "/about",
+            "\U0001f4ca \u0421\u0442\u0430\u0442\u0443\u0441": "/status",
+            "\U0001f4ca Status": "/status",
         }
         text = commands.get(text, text)
 
@@ -654,7 +654,7 @@ def telegram_webhook():
             if user_id != ADMIN_TELEGRAM_ID:
                 send_message(
                     chat_id,
-                    "â Access denied." if language == "en" else "â ÐÐ¾ÑÑÑÐ¿ Ð·Ð°Ð¿ÑÐµÑÑÐ½.",
+                    "\u26d4 Access denied." if language == "en" else "\u26d4 \u0414\u043e\u0441\u0442\u0443\u043f \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d.",
                     main_menu(language),
                 )
             else:
@@ -664,7 +664,7 @@ def telegram_webhook():
             send_message(
                 chat_id,
                 CHANNEL_URL,
-                {"inline_keyboard": [[{"text": "ð FLUX AI", "url": CHANNEL_URL}]]},
+                {"inline_keyboard": [[{"text": "\U0001f3c6 FLUX AI", "url": CHANNEL_URL}]]},
             )
         elif text == "/worldcup":
             set_user_sport(user_id, "football")
@@ -672,9 +672,9 @@ def telegram_webhook():
         elif text == "/results":
             send_message(
                 chat_id,
-                "ð Results are being prepared."
+                "\U0001f4c8 Results are being prepared."
                 if language == "en"
-                else "ð Ð¡ÑÐ°ÑÐ¸ÑÑÐ¸ÐºÐ° ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÐ¾Ð² Ð³Ð¾ÑÐ¾Ð²Ð¸ÑÑÑ.",
+                else "\U0001f4c8 \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432 \u0433\u043e\u0442\u043e\u0432\u0438\u0442\u0441\u044f.",
                 main_menu(language),
             )
         elif text == "/today":
