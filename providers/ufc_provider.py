@@ -121,91 +121,6 @@ def api_get(
         ) from error
 
 
-
-def summarize_payload(value: Any, depth: int = 0) -> Any:
-    """
-    Build a compact, safe summary of a JSON response for Render logs.
-    The API key is never printed.
-    """
-    if depth >= 3:
-        if isinstance(value, dict):
-            return {"_type": "dict", "_keys": list(value.keys())[:20]}
-        if isinstance(value, list):
-            return {"_type": "list", "_length": len(value)}
-        return type(value).__name__
-
-    if isinstance(value, dict):
-        result = {}
-
-        for index, (key, item) in enumerate(value.items()):
-            if index >= 30:
-                result["_truncated"] = True
-                break
-
-            key_text = str(key)
-
-            if any(
-                secret_word in key_text.lower()
-                for secret_word in (
-                    "api_key",
-                    "apikey",
-                    "authorization",
-                    "token",
-                    "secret",
-                )
-            ):
-                result[key_text] = "[hidden]"
-                continue
-
-            result[key_text] = summarize_payload(
-                item,
-                depth + 1,
-            )
-
-        return result
-
-    if isinstance(value, list):
-        return {
-            "_type": "list",
-            "_length": len(value),
-            "_sample": [
-                summarize_payload(item, depth + 1)
-                for item in value[:3]
-            ],
-        }
-
-    if value is None:
-        return None
-
-    text = clean_text(value)
-
-    if len(text) > 120:
-        text = text[:117] + "..."
-
-    return text
-
-
-def log_payload(label: str, payload: Any) -> None:
-    try:
-        import json
-
-        summary = summarize_payload(payload)
-
-        print(
-            f"CITO_DEBUG_{label}: "
-            + json.dumps(
-                summary,
-                ensure_ascii=False,
-                sort_keys=True,
-            )[:12000],
-            flush=True,
-        )
-    except Exception as error:
-        print(
-            f"CITO_DEBUG_{label}_ERROR: {error!r}",
-            flush=True,
-        )
-
 def walk_dicts(value: Any) -> Iterable[Dict[str, Any]]:
     if isinstance(value, dict):
         yield value
@@ -453,93 +368,95 @@ def extract_stat(
     return safe_float(value)
 
 
-def extract_recent_fights(payload: Any, limit: int = 5) -> List[Dict[str, Any]]:
-    rows = []
+def normalize_outcome(value: Any) -> str:
+    text = clean_text(value).lower()
 
-    for item in walk_dicts(payload):
-        result = clean_text(
-            first_value(
-                item,
-                "result",
-                "outcome",
-                "fighterResult",
-                "fighter_result",
-            )
-        ).upper()
+    mapping = {
+        "w": "W",
+        "win": "W",
+        "winner": "W",
+        "victory": "W",
+        "l": "L",
+        "loss": "L",
+        "lost": "L",
+        "defeat": "L",
+        "d": "D",
+        "draw": "D",
+        "nc": "NC",
+        "no contest": "NC",
+        "no_contest": "NC",
+    }
 
-        opponent = clean_text(
-            first_value(
-                item,
-                "opponent",
-                "opponentName",
-                "opponent_name",
-            )
-        )
+    return mapping.get(text, "")
 
-        event = clean_text(
-            first_value(
-                item,
-                "event",
-                "eventName",
-                "event_name",
-                "eventTitle",
-                "event_title",
-            )
-        )
 
-        method = clean_text(
-            first_value(
-                item,
-                "method",
-                "resultMethod",
-                "result_method",
-                "finishMethod",
-                "finish_method",
-            )
-        )
+def extract_recent_fights(
+    payload: Any,
+    limit: int = 5,
+) -> List[Dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return []
 
-        date_value = clean_text(
-            first_value(
-                item,
-                "date",
-                "eventDate",
-                "event_date",
-                "startTime",
-                "start_time",
-            )
-        )
+    rows = payload.get("data")
 
-        if result not in {"W", "L", "D", "NC"}:
+    if not isinstance(rows, list):
+        return []
+
+    fights = []
+
+    for item in rows:
+        if not isinstance(item, dict):
             continue
 
-        rows.append({
-            "result": result,
-            "fighters": [opponent] if opponent else [],
-            "event": event,
-            "date": date_value,
-            "method": method,
+        outcome = normalize_outcome(
+            item.get("outcome")
+        )
+
+        # Upcoming/unconfirmed bouts can have outcome=None.
+        if not outcome:
+            continue
+
+        opponent = item.get("opponent") or {}
+        event = item.get("event") or {}
+        bout = item.get("bout") or {}
+
+        if not isinstance(opponent, dict):
+            opponent = {}
+
+        if not isinstance(event, dict):
+            event = {}
+
+        if not isinstance(bout, dict):
+            bout = {}
+
+        fights.append({
+            "result": outcome,
+            "fighters": [
+                clean_text(opponent.get("name"))
+            ] if clean_text(opponent.get("name")) else [],
+            "event": clean_text(
+                event.get("title")
+            ),
+            "date": clean_text(
+                event.get("eventDate")
+                or event.get("startsAt")
+                or event.get("venueDate")
+            ),
+            "method": clean_text(
+                bout.get("method")
+            ),
             "round": clean_text(
-                first_value(
-                    item,
-                    "round",
-                    "finishRound",
-                    "finish_round",
-                )
+                bout.get("resultRound")
             ),
             "time": clean_text(
-                first_value(
-                    item,
-                    "time",
-                    "finishTime",
-                    "finish_time",
-                )
+                bout.get("resultTime")
             ),
         })
 
-        if len(rows) >= limit:
+        if len(fights) >= limit:
             break
 
-    return rows
+    return fights
 
 
 @lru_cache(maxsize=256)
@@ -561,19 +478,6 @@ def get_fighter_profile_by_slug(
     )
     fights_payload = api_get(
         f"/ufc/fighters/{encoded_slug}/fights"
-    )
-
-    log_payload(
-        f"PROFILE_{slug}",
-        profile_payload,
-    )
-    log_payload(
-        f"STATS_{slug}",
-        stats_payload,
-    )
-    log_payload(
-        f"FIGHTS_{slug}",
-        fights_payload,
     )
 
     name = clean_text(
@@ -650,6 +554,7 @@ def get_fighter_profile_by_slug(
         "slpm": extract_stat(
             stats_payload,
             "slpm",
+            "sigStrikesLandedPerMin",
             "significantStrikesLandedPerMinute",
             "significant_strikes_landed_per_minute",
             "sigStrikesLandedPerMinute",
@@ -667,6 +572,7 @@ def get_fighter_profile_by_slug(
         "sapm": extract_stat(
             stats_payload,
             "sapm",
+            "sigStrikesAbsorbedPerMin",
             "significantStrikesAbsorbedPerMinute",
             "significant_strikes_absorbed_per_minute",
             "sigStrikesAbsorbedPerMinute",
@@ -676,6 +582,7 @@ def get_fighter_profile_by_slug(
             stats_payload,
             "strikingDefense",
             "striking_defense",
+            "sigStrikeDefense",
             "significantStrikeDefense",
             "significant_strike_defense",
             "sigStrDefense",
@@ -683,6 +590,7 @@ def get_fighter_profile_by_slug(
         ),
         "takedown_average": extract_stat(
             stats_payload,
+            "takedownAvgPer15Min",
             "takedownAverage",
             "takedown_average",
             "takedownsPer15Minutes",
@@ -706,6 +614,7 @@ def get_fighter_profile_by_slug(
         ),
         "submission_average": extract_stat(
             stats_payload,
+            "submissionAvgPer15Min",
             "submissionAverage",
             "submission_average",
             "submissionAttemptsPer15Minutes",
